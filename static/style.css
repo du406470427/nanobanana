@@ -19,7 +19,14 @@ body {
     background: linear-gradient(90deg, #fde047, #f97316, #ef4444);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    text-align: center;
+    color: #888;
     margin-bottom: 2rem;
+    font-size: 1rem;
 }
 
 .main-container {
