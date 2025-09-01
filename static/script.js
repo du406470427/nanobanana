@@ -1,66 +1,147 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const imageUpload = document.getElementById('image-upload');
-    const thumbnail = document.getElementById('thumbnail');
+    const uploadArea = document.querySelector('.upload-area');
+    const fileInput = document.getElementById('image-upload');
+    const thumbnailsContainer = document.getElementById('thumbnails-container');
     const promptInput = document.getElementById('prompt-input');
-    const generateBtn = document.getElementById('generate-btn');
-    const resultImageContainer = document.getElementById('result-image-container');
-
     const apiKeyInput = document.getElementById('api-key-input');
+    const generateBtn = document.getElementById('generate-btn');
+    const btnText = generateBtn.querySelector('.btn-text');
+    const spinner = generateBtn.querySelector('.spinner');
+    const resultContainer = document.getElementById('result-image-container');
 
-    let uploadedImageBase64 = '';
+    let selectedFiles = [];
 
-    imageUpload.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                thumbnail.src = e.target.result;
-                thumbnail.classList.remove('hidden');
-                uploadedImageBase64 = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+    // 拖放功能
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
     });
 
-    generateBtn.addEventListener('click', async () => {
-        const prompt = promptInput.value;
-        const apiKey = apiKeyInput.value;
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
-        if (!prompt) {
-            alert('请输入提示词！');
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => {
+            uploadArea.classList.add('drag-over');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, () => {
+            uploadArea.classList.remove('drag-over');
+        });
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+        handleFiles(files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files).filter(file => file.type.startsWith('image/'));
+        handleFiles(files);
+    });
+
+    function handleFiles(files) {
+        files.forEach(file => {
+            if (!selectedFiles.some(f => f.name === file.name)) {
+                selectedFiles.push(file);
+                createThumbnail(file);
+            }
+        });
+    }
+
+    function createThumbnail(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'thumbnail-wrapper';
+            
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.alt = file.name;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.onclick = () => {
+                selectedFiles = selectedFiles.filter(f => f.name !== file.name);
+                wrapper.remove();
+            };
+            
+            wrapper.appendChild(img);
+            wrapper.appendChild(removeBtn);
+            thumbnailsContainer.appendChild(wrapper);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    generateBtn.addEventListener('click', async () => {
+        if (selectedFiles.length === 0) {
+            alert('Please select at least one image');
             return;
         }
 
-        resultImageContainer.innerHTML = '<p>正在生成图片，请稍候...</p>';
+        if (!promptInput.value.trim()) {
+            alert('Please enter a prompt');
+            return;
+        }
+
+        setLoading(true);
 
         try {
+            // 处理第一张图片
+            const file = selectedFiles[0];
+            const base64Image = await fileToBase64(file);
+            
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    prompt: prompt,
-                    image: uploadedImageBase64, // The base64 string of the image
-                    apikey: apiKey, // Add API Key to the request
-                }),
+                    prompt: promptInput.value,
+                    image: base64Image,
+                    apikey: apiKeyInput.value
+                })
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
 
             const data = await response.json();
 
-            if (data.imageUrl) {
-                resultImageContainer.innerHTML = `<img src="${data.imageUrl}" alt="生成的图片">`;
-            } else {
-                resultImageContainer.innerHTML = `<p>生成失败：${data.error || '未知错误'}</p>`;
+            if (data.error) {
+                throw new Error(data.error);
             }
 
+            displayResult(data.imageUrl);
         } catch (error) {
-            console.error('生成图片时出错:', error);
-            resultImageContainer.innerHTML = `<p>生成图片时出错: ${error.message}</p>`;
+            alert('Error: ' + error.message);
+            resultContainer.innerHTML = `<p>Error: ${error.message}</p>`;
+        } finally {
+            setLoading(false);
         }
     });
+
+    function setLoading(isLoading) {
+        generateBtn.disabled = isLoading;
+        btnText.textContent = isLoading ? 'Generating...' : 'Generate';
+        spinner.classList.toggle('hidden', !isLoading);
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function displayResult(imageUrl) {
+        resultContainer.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Generated image';
+        resultContainer.appendChild(img);
+    }
 });
