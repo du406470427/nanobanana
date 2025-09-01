@@ -20,7 +20,7 @@
 
 1.  **Fork 本项目**: 将此项目 Fork 到您自己的 GitHub 仓库。
 
-2.  **登录 Deno Deploy**: 使用您的 GitHub 账号登录 [Deno Deploy](https://deno.com/deploy)。
+2.  **登录 Deno Deploy**: 使用您的 GitHub 账号登录 [Deno Deploy](https://dash.deno.com/account/overview)。
 
 3.  **创建新项目**: 
     - 点击 "New Project"。
