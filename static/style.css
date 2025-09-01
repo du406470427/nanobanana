@@ -16,10 +16,17 @@ body {
 .title {
     font-size: 3rem;
     font-weight: 700;
+    /* 渐变色应用于文本，不影响 emoji */
     background: linear-gradient(90deg, #fde047, #f97316, #ef4444);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.2rem; /* 减小与副标题的距离 */
+}
+
+.title span {
+    background: linear-gradient(90deg, #fde047, #f97316, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .subtitle {
