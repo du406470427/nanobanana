@@ -78,13 +78,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     generateBtn.addEventListener('click', async () => {
+        if (!apiKeyInput.value.trim()) {
+            alert('请输入 OpenRouter API 密钥');
+            return;
+        }
+
         if (selectedFiles.length === 0) {
-            alert('Please select at least one image');
+            alert('请选择至少一张图片');
             return;
         }
 
         if (!promptInput.value.trim()) {
-            alert('Please enter a prompt');
+            alert('请输入提示词');
             return;
         }
 
