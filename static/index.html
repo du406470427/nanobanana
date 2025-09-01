@@ -8,21 +8,40 @@
 </head>
 <body>
     <h1 class="title">nano banana</h1>
-    <div class="container">
-        <div class="upload-section">
-            <input type="file" id="image-upload" accept="image/*">
-            <label for="image-upload">选择图片</label>
-            <img id="thumbnail" src="#" alt="图片缩略图" class="hidden">
+    <div class="main-container">
+        <div class="controls-container">
+            <div class="upload-section">
+                <h2>1. Upload Images</h2>
+                <div class="upload-area">
+                    <input type="file" id="image-upload" accept="image/*" multiple>
+                    <label for="image-upload">
+                        <p>Click to browse or drag & drop</p>
+                        <span>Supports multiple images</span>
+                    </label>
+                </div>
+                <div id="thumbnails-container"></div>
+            </div>
+
+            <div class="prompt-section">
+                <h2>2. Enter Prompt</h2>
+                <textarea id="prompt-input" placeholder="e.g., a cat wearing a superhero cape, cinematic lighting"></textarea>
+            </div>
+
+            <div class="api-key-section">
+                <h2>3. API Key</h2>
+                <input type="password" id="api-key-input" placeholder="Enter your OpenRouter API Key (optional)">
+            </div>
+
+            <button id="generate-btn">
+                <span class="btn-text">Generate</span>
+                <span class="spinner hidden"></span>
+            </button>
         </div>
-        <div class="prompt-section">
-            <input type="password" id="api-key-input" placeholder="输入你的 OpenRouter API Key...">
-            <textarea id="prompt-input" placeholder="输入提示词..."></textarea>
-            <button id="generate-btn">生成</button>
-        </div>
-        <div class="result-section">
-            <h2>生成结果</h2>
+
+        <div class="result-container">
+            <h2>Result</h2>
             <div id="result-image-container">
-                <p>这里将显示生成的图片。</p>
+                <p>Your generated image will appear here</p>
             </div>
         </div>
     </div>
