@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.140.0/http/server.ts";
-import { serveDir } from "https://deno.land/std@0.140.0/http/file_server.ts";
+import { serve } from "https://deno.land/std@0.200.0/http/server.ts";
+import { serveDir } from "https://deno.land/std@0.200.0/http/file_server.ts";
 
 serve(async (req) => {
     const pathname = new URL(req.url).pathname;
@@ -54,16 +54,29 @@ serve(async (req) => {
                 throw new Error("Invalid response structure from OpenRouter API. No content.");
             }
 
-            const content = message.content;
-            // Extract URL from markdown image format ![...](URL) or assume content is the URL
-            const imageUrlMatch = content.match(/\!\[.*?\]\((.*?)\)/);
-            const imageUrl = imageUrlMatch ? imageUrlMatch[1] : content.trim();
+            const messageContent = responseData.choices[0].message.content;
+            console.log("OpenRouter message content:", messageContent);
 
-            if (!imageUrl) {
-                throw new Error("Could not extract image URL from response.");
+            let imageUrl = '';
+
+            // 检查 messageContent 是否为 Base64 编码的图片 URL
+            if (messageContent && messageContent.startsWith('data:image/')) {
+                imageUrl = messageContent;
+            } else if (responseData.choices[0].message.images && responseData.choices[0].message.images.length > 0) {
+                // 尝试从 images 数组中获取图片 URL
+                imageUrl = responseData.choices[0].message.images[0].image_url.url;
             }
 
-            return new Response(JSON.stringify({ imageUrl }), { headers: { "Content-Type": "application/json" } });
+            if (!imageUrl) {
+                console.error("无法从 OpenRouter 响应中提取有效的图片 URL。返回内容：", messageContent);
+                return new Response("无法生成图片，请尝试其他提示词或稍后再试。", { status: 500 });
+            }
+
+            console.log("最终解析的图片 URL:", imageUrl);
+
+            return new Response(JSON.stringify({ imageUrl }), {
+                headers: { "Content-Type": "application/json" },
+            });
 
         } catch (error) {
             console.error("Error handling /generate request:", error);
