@@ -27,7 +27,7 @@ serve(async (req) => {
                 messages: [
                     { role: "user", content: contentPayload },
                 ],
-                modalities: ["image", "text"]
+                modalities: ["image"]
             };
 
             const apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -46,6 +46,8 @@ serve(async (req) => {
             }
 
             const responseData = await apiResponse.json();
+            console.log("OpenRouter Response:", JSON.stringify(responseData, null, 2));
+
             const message = responseData.choices?.[0]?.message;
 
             if (!message || !message.content) {
