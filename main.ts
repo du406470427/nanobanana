@@ -46,7 +46,20 @@ serve(async (req) => {
             }
 
             const responseData = await apiResponse.json();
-            const imageUrl = responseData.choices[0].message.images[0].image_url.url;
+            const message = responseData.choices?.[0]?.message;
+
+            if (!message || !message.content) {
+                throw new Error("Invalid response structure from OpenRouter API. No content.");
+            }
+
+            const content = message.content;
+            // Extract URL from markdown image format ![...](URL) or assume content is the URL
+            const imageUrlMatch = content.match(/\!\[.*?\]\((.*?)\)/);
+            const imageUrl = imageUrlMatch ? imageUrlMatch[1] : content.trim();
+
+            if (!imageUrl) {
+                throw new Error("Could not extract image URL from response.");
+            }
 
             return new Response(JSON.stringify({ imageUrl }), { headers: { "Content-Type": "application/json" } });
 
