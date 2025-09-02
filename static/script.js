@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     }
 
+    // --- 核心修改区域开始 ---
     generateBtn.addEventListener('click', async () => {
         if (!apiKeyInput.value.trim()) {
             alert('请输入 OpenRouter API 密钥');
@@ -96,10 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(true);
 
         try {
-            // 处理第一张图片
-            const file = selectedFiles[0];
-            const base64Image = await fileToBase64(file);
+            // 1. 创建一个 Promise 数组，用于将所有选中的文件转换为 Base64
+            const conversionPromises = selectedFiles.map(file => fileToBase64(file));
             
+            // 2. 等待所有文件转换完成
+            const base64Images = await Promise.all(conversionPromises);
+            
+            // 3. 发送包含 images 数组的请求
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
@@ -107,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     prompt: promptInput.value,
-                    image: base64Image,
+                    images: base64Images, // 注意：这里从 'image' 改为了 'images'，并且值是一个数组
                     apikey: apiKeyInput.value
                 })
             });
@@ -126,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setLoading(false);
         }
     });
+    // --- 核心修改区域结束 ---
 
     function setLoading(isLoading) {
         generateBtn.disabled = isLoading;
