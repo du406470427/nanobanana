@@ -1,9 +1,15 @@
 import { serve } from "https://deno.land/std@0.200.0/http/server.ts";
-import { serveDir } from "https://deno.land/std@0.200.0/http/file_server.ts";
+import { serveFile } from "https://deno.land/std@0.200.0/http/file_server.ts";
 import { Buffer } from "https://deno.land/std@0.177.0/node/buffer.ts";
 
 // --- 辅助函数：生成错误 JSON 响应 ---
-function createJsonErrorResponse(message: string, statusCode = 500) { /* ... */ }
+function createJsonErrorResponse(message: string, statusCode = 500) { 
+    // 函数内容保持不变，为简洁省略
+    return new Response(JSON.stringify({ error: { message } }), {
+        status: statusCode,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    });
+}
 
 // --- 核心业务逻辑：调用 OpenRouter ---
 async function callOpenRouter(messages: any[], apiKey: string): Promise<{ type: 'image' | 'text'; content: string }> {
@@ -41,7 +47,6 @@ serve(async (req) => {
             if (!apiKey) { return createJsonErrorResponse("API key is missing.", 401); }
             if (!geminiRequest.contents?.length) { return createJsonErrorResponse("Invalid request: 'contents' array is missing.", 400); }
             
-            // --- 智能提取逻辑 ---
             const fullHistory = geminiRequest.contents;
             const lastUserMessageIndex = fullHistory.findLastIndex((msg: any) => msg.role === 'user');
             let relevantHistory = (lastUserMessageIndex !== -1) ? fullHistory.slice(fullHistory.findLastIndex((msg: any, idx: number) => msg.role === 'model' && idx < lastUserMessageIndex), lastUserMessageIndex + 1) : [];
@@ -53,7 +58,6 @@ serve(async (req) => {
                 return { role: geminiMsg.role === 'model' ? 'assistant' : 'user', content: parts };
             });
             
-            // --- 简化后的流处理 ---
             const stream = new ReadableStream({
                 async start(controller) {
                     try {
@@ -140,17 +144,13 @@ serve(async (req) => {
             
             const webUiMessages = [ { role: "user", content: [ {type: "text", text: prompt}, ...images.map(img => ({type: "image_url", image_url: {url: img}})) ] } ];
             
-            // --- 这里是修改的关键 ---
             const result = await callOpenRouter(webUiMessages, openrouterApiKey);
     
-            // 检查返回的是否是图片类型，并提取 content
             if (result && result.type === 'image') {
-                // 返回给前端正确的 JSON 结构
                 return new Response(JSON.stringify({ imageUrl: result.content }), { 
                     headers: { "Content-Type": "application/json" } 
                 });
             } else {
-                // 如果模型意外地返回了文本或其他内容，则返回错误
                 const errorMessage = result ? `Model returned text instead of an image: ${result.content}` : "Model returned an empty response.";
                 console.error("Error handling /generate request:", errorMessage);
                 return new Response(JSON.stringify({ error: errorMessage }), { 
@@ -165,6 +165,23 @@ serve(async (req) => {
         }
     }
 
-    // --- 路由 4: 静态文件服务 ---
-    return serveDir(req, { fsRoot: "static", urlRoot: "", showDirListing: true, enableCors: true });
+    // --- 最终的静态文件服务 (Catch-all Route) ---
+    // 如果请求没有匹配任何 API 路由，就认为它是要请求一个文件
+
+    // 关键修正: 如果请求的是根目录 ("/")，则指定文件为 "index.html"
+    const filePath = pathname === "/" ? "/index.html" : pathname;
+
+    // 使用 serveFile 尝试从项目的根目录提供文件服务
+    // 例如: 请求 "/style.css" -> 查找 "./style.css"
+    //       请求 "/static/xiguadepi.jpeg" -> 查找 "./static/xiguadepi.jpeg"
+    try {
+        return await serveFile(req, `.${filePath}`);
+    } catch (e) {
+        // 如果 serveFile 找不到文件 (抛出 NotFound 错误), 返回一个 404 响应
+        if (e instanceof Deno.errors.NotFound) {
+            return new Response("Not Found", { status: 404 });
+        }
+        // 对于其他任何错误, 返回一个 500 内部服务器错误
+        return new Response("Internal Server Error", { status: 500 });
+    }
 });
