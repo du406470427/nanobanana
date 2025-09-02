@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.200.0/http/server.ts";
-import { serveDir } from "https://deno.land/std@0.200.0/http/file_server.ts";
+import { serveDir, serveFile } from "https://deno.land/std@0.200.0/http/file_server.ts";
 import { Buffer } from "https://deno.land/std@0.177.0/node/buffer.ts";
 
 // --- 辅助函数：生成错误 JSON 响应 ---
@@ -30,6 +30,11 @@ async function callOpenRouter(messages: any[], apiKey: string): Promise<{ type: 
 // --- 主服务逻辑 ---
 serve(async (req) => {
     const pathname = new URL(req.url).pathname;
+    
+    // 增加对favicon.ico的直接处理，避免后续路由的干扰
+    if (pathname === "/favicon.ico") {
+        return serveFile(req, "./static/xiguadepi.jpeg");
+    }
     
     if (req.method === 'OPTIONS') { return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization, x-goog-api-key" } }); }
 
@@ -165,6 +170,24 @@ serve(async (req) => {
         }
     }
 
-    // --- 路由 4: 静态文件服务 ---
-    return serveDir(req, { fsRoot: "static", urlRoot: "", showDirListing: true, enableCors: true });
+    // --- 新增：静态文件服务路由 ---
+    // 这个路由将处理所有未被前面 API 路由匹配的请求
+
+    // 1. 处理对根目录的请求，返回 index.html
+    if (pathname === "/") {
+        return serveFile(req, "./index.html");
+    }
+
+    // 2. 处理对 /static/ 目录下文件以及其他文件的请求
+    // 使用 serveDir 来服务整个项目目录下的文件
+    // 浏览器请求 /style.css -> serveDir 会去寻找 ./style.css
+    // 浏览器请求 /static/xiguadepi.jpeg -> serveDir 会去寻找 ./static/xiguadepi.jpeg
+    const res = await serveDir(req, {
+        fsRoot: ".", // 从项目根目录开始提供文件
+        urlRoot: "",  // URL 路径和文件系统路径直接对应
+        enableCors: true
+    });
+    // 添加 CORS 头，确保字体等资源可以跨域加载
+    res.headers.set("Access-Control-Allow-Origin", "*");
+    return res;
 });
