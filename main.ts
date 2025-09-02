@@ -48,28 +48,34 @@ serve(async (req) => {
             const responseData = await apiResponse.json();
             console.log("OpenRouter Response:", JSON.stringify(responseData, null, 2));
 
+            // --- 修改开始 ---
+            // 核心改动：不再因为 message.content 不存在而直接报错，
+            // 而是尝试从多个可能的字段中提取图片URL。
+
             const message = responseData.choices?.[0]?.message;
 
-            if (!message || !message.content) {
-                throw new Error("Invalid response structure from OpenRouter API. No content.");
+            if (!message) {
+                // 如果连 message 对象都没有，说明响应结构确实有问题
+                throw new Error("Invalid response structure from OpenRouter API: No 'message' object found.");
             }
 
-            const messageContent = responseData.choices[0].message.content;
-            console.log("OpenRouter message content:", messageContent);
-
+            const messageContent = message.content || ""; // 安全地获取 content，如果不存在则为空字符串
             let imageUrl = '';
 
-            // 检查 messageContent 是否为 Base64 编码的图片 URL
-            if (messageContent && messageContent.startsWith('data:image/')) {
+            // 1. 检查 message.content 是否为 Base64 编码的图片 URL
+            if (messageContent.startsWith('data:image/')) {
                 imageUrl = messageContent;
-            } else if (responseData.choices[0].message.images && responseData.choices[0].message.images.length > 0) {
-                // 尝试从 images 数组中获取图片 URL
-                imageUrl = responseData.choices[0].message.images[0].image_url.url;
+            } 
+            // 2. 如果 content 不是图片，则检查 images 数组（作为备用方案）
+            else if (message.images && message.images.length > 0 && message.images[0].image_url?.url) {
+                imageUrl = message.images[0].image_url.url;
             }
 
+            // 在所有可能性都检查完毕后，如果仍然没有找到 imageUrl，才抛出错误
             if (!imageUrl) {
-                console.error("无法从 OpenRouter 响应中提取有效的图片 URL。返回内容：", messageContent);
-                return new Response("无法生成图片，请尝试其他提示词或稍后再试。", { status: 500 });
+                console.error("无法从 OpenRouter 响应中提取有效的图片 URL。返回内容：", JSON.stringify(message, null, 2));
+                // 抛出一个更具体的错误
+                throw new Error("Could not extract a valid image URL from the OpenRouter API response.");
             }
 
             console.log("最终解析的图片 URL:", imageUrl);
@@ -77,6 +83,7 @@ serve(async (req) => {
             return new Response(JSON.stringify({ imageUrl }), {
                 headers: { "Content-Type": "application/json" },
             });
+            // --- 修改结束 ---
 
         } catch (error) {
             console.error("Error handling /generate request:", error);
