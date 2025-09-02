@@ -6,20 +6,28 @@ serve(async (req) => {
 
     if (pathname === "/generate") {
         try {
-            const { prompt, image, apikey } = await req.json();
+            // --- 修改 1: 从接收 "image" 改为接收 "images" 数组 ---
+            // 确保 images 是一个数组，如果没传则默认为空数组
+            const { prompt, images, apikey } = await req.json();
             const openrouterApiKey = apikey || Deno.env.get("OPENROUTER_API_KEY");
 
             if (!openrouterApiKey) {
                 return new Response(JSON.stringify({ error: "OpenRouter API key is not set." }), { status: 500, headers: { "Content-Type": "application/json" } });
             }
 
-            let contentPayload: any[] = [];
+            // --- 修改 2: 动态构建支持多图的 contentPayload ---
+            const contentPayload: any[] = [{ type: "text", text: prompt }];
 
-            if (image) {
-                contentPayload.push({ type: "text", text: `根据我上传的图片，${prompt}` });
-                contentPayload.push({ type: "image_url", image_url: { url: image } });
-            } else {
-                contentPayload.push({ type: "text", text: prompt });
+            // 如果 images 数组存在且不为空，则遍历并添加所有图片
+            if (images && Array.isArray(images) && images.length > 0) {
+                for (const imageUrl of images) {
+                    contentPayload.push({
+                        type: "image_url",
+                        image_url: { url: imageUrl }
+                    });
+                }
+                 // 如果有图片，可以考虑修改一下提示词，让模型知道有多张图片
+                contentPayload[0].text = `根据我上传的这几张图片，${prompt}`;
             }
 
             const openrouterPayload = {
@@ -29,6 +37,9 @@ serve(async (req) => {
                 ],
                 modalities: ["image"]
             };
+
+            // --- 修改 3: 添加日志，用于调试发送的参数 ---
+            console.log("Sending payload to OpenRouter:", JSON.stringify(openrouterPayload, null, 2));
 
             const apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
@@ -48,33 +59,24 @@ serve(async (req) => {
             const responseData = await apiResponse.json();
             console.log("OpenRouter Response:", JSON.stringify(responseData, null, 2));
 
-            // --- 修改开始 ---
-            // 核心改动：不再因为 message.content 不存在而直接报错，
-            // 而是尝试从多个可能的字段中提取图片URL。
-
             const message = responseData.choices?.[0]?.message;
 
             if (!message) {
-                // 如果连 message 对象都没有，说明响应结构确实有问题
                 throw new Error("Invalid response structure from OpenRouter API: No 'message' object found.");
             }
 
-            const messageContent = message.content || ""; // 安全地获取 content，如果不存在则为空字符串
+            const messageContent = message.content || "";
             let imageUrl = '';
 
-            // 1. 检查 message.content 是否为 Base64 编码的图片 URL
             if (messageContent.startsWith('data:image/')) {
                 imageUrl = messageContent;
             } 
-            // 2. 如果 content 不是图片，则检查 images 数组（作为备用方案）
             else if (message.images && message.images.length > 0 && message.images[0].image_url?.url) {
                 imageUrl = message.images[0].image_url.url;
             }
 
-            // 在所有可能性都检查完毕后，如果仍然没有找到 imageUrl，才抛出错误
             if (!imageUrl) {
                 console.error("无法从 OpenRouter 响应中提取有效的图片 URL。返回内容：", JSON.stringify(message, null, 2));
-                // 抛出一个更具体的错误
                 throw new Error("Could not extract a valid image URL from the OpenRouter API response.");
             }
 
@@ -83,7 +85,6 @@ serve(async (req) => {
             return new Response(JSON.stringify({ imageUrl }), {
                 headers: { "Content-Type": "application/json" },
             });
-            // --- 修改结束 ---
 
         } catch (error) {
             console.error("Error handling /generate request:", error);
