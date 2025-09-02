@@ -138,11 +138,27 @@ serve(async (req) => {
             if (!openrouterApiKey) { return new Response(JSON.stringify({ error: "OpenRouter API key is not set." }), { status: 500 }); }
             if (!prompt || !images || !images.length) { return new Response(JSON.stringify({ error: "Prompt and images are required." }), { status: 400 }); }
             
-            // Web UI 发送的是完整的 Base64 URL 数组，我们需要把它转换成 OpenAI 格式
             const webUiMessages = [ { role: "user", content: [ {type: "text", text: prompt}, ...images.map(img => ({type: "image_url", image_url: {url: img}})) ] } ];
-            const generatedImageUrl = await callOpenRouter(webUiMessages, openrouterApiKey);
             
-            return new Response(JSON.stringify({ imageUrl: generatedImageUrl }), { headers: { "Content-Type": "application/json" } });
+            // --- 这里是修改的关键 ---
+            const result = await callOpenRouter(webUiMessages, openrouterApiKey);
+    
+            // 检查返回的是否是图片类型，并提取 content
+            if (result && result.type === 'image') {
+                // 返回给前端正确的 JSON 结构
+                return new Response(JSON.stringify({ imageUrl: result.content }), { 
+                    headers: { "Content-Type": "application/json" } 
+                });
+            } else {
+                // 如果模型意外地返回了文本或其他内容，则返回错误
+                const errorMessage = result ? `Model returned text instead of an image: ${result.content}` : "Model returned an empty response.";
+                console.error("Error handling /generate request:", errorMessage);
+                return new Response(JSON.stringify({ error: errorMessage }), { 
+                    status: 500, 
+                    headers: { "Content-Type": "application/json" } 
+                });
+            }
+            
         } catch (error) {
             console.error("Error handling /generate request:", error);
             return new Response(JSON.stringify({ error: error.message }), { status: 500 });
