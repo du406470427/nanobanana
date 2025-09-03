@@ -1,4 +1,6 @@
-document.addEventListener('DOMContentLoaded', () => {
+// --- START OF FILE script.js ---
+
+document.addEventListener('DOMContentLoaded', async () => { // <-- 1. 将事件监听器设为异步
     const uploadArea = document.querySelector('.upload-area');
     const fileInput = document.getElementById('image-upload');
     const thumbnailsContainer = document.getElementById('thumbnails-container');
@@ -8,8 +10,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnText = generateBtn.querySelector('.btn-text');
     const spinner = generateBtn.querySelector('.spinner');
     const resultContainer = document.getElementById('result-image-container');
+    const apiKeySection = document.querySelector('.api-key-section'); // <-- 2. 获取设置区域的元素
 
     let selectedFiles = [];
+
+    // --- 3. 新增功能: 页面加载时检查服务器 API Key 状态 ---
+    try {
+        const response = await fetch('/api/key-status');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.isSet) {
+                // 如果服务器已设置 key，则隐藏整个输入区域
+                apiKeySection.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error("无法检查 API key 状态:", error);
+        // 如果检查失败，保持输入框可见，以便用户可以手动输入
+    }
+    // --- 新增功能结束 ---
+
 
     // 拖放功能
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -77,9 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     }
 
-    // --- 核心修改区域开始 ---
     generateBtn.addEventListener('click', async () => {
-        if (!apiKeyInput.value.trim()) {
+        // --- 4. 修改这里的判断逻辑 ---
+        // 仅当 API Key 输入框可见时，才检查其是否为空
+        if (apiKeySection.style.display !== 'none' && !apiKeyInput.value.trim()) {
             alert('请输入 OpenRouter API 密钥');
             return;
         }
@@ -97,13 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(true);
 
         try {
-            // 1. 创建一个 Promise 数组，用于将所有选中的文件转换为 Base64
             const conversionPromises = selectedFiles.map(file => fileToBase64(file));
-            
-            // 2. 等待所有文件转换完成
             const base64Images = await Promise.all(conversionPromises);
             
-            // 3. 发送包含 images 数组的请求
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: {
@@ -111,8 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({
                     prompt: promptInput.value,
-                    images: base64Images, // 注意：这里从 'image' 改为了 'images'，并且值是一个数组
-                    apikey: apiKeyInput.value
+                    images: base64Images,
+                    // 如果输入框可见，就发送它的值；如果不可见，apiKeyInput.value 是空字符串，
+                    // 后端逻辑 `apikey || Deno.env.get(...)` 会自动使用环境变量。
+                    apikey: apiKeyInput.value 
                 })
             });
 
@@ -130,11 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setLoading(false);
         }
     });
-    // --- 核心修改区域结束 ---
 
     function setLoading(isLoading) {
         generateBtn.disabled = isLoading;
-        btnText.textContent = isLoading ? 'Generating...' : 'Generate';
+        btnText.textContent = isLoading ? '正在生成...' : '生成'; // 翻译为中文
         spinner.classList.toggle('hidden', !isLoading);
     }
 
@@ -151,7 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resultContainer.innerHTML = '';
         const img = document.createElement('img');
         img.src = imageUrl;
-        img.alt = 'Generated image';
+        img.alt = '生成的图片'; // 翻译为中文
         resultContainer.appendChild(img);
     }
 });
+// --- END OF FILE script.js ---
