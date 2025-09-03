@@ -37,10 +37,6 @@
 
 ## 🚀 部署到 Deno Deploy
 
-部署过程非常简单，只需点击下方按钮，或遵循手动步骤：
-
-[![Deploy to Deno](https://deno.com/deploy-button.svg)](https://deno.com/deploy?url=https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/main.ts)
-
 **手动步骤:**
 
 1.  **Fork 本项目**: 将此项目 Fork 到您自己的 GitHub 仓库。
