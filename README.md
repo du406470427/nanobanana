@@ -60,14 +60,10 @@
     *   选择您 Fork 的 GitHub 仓库。
     *   选择 `main` 分支和 `main.ts` (或您的主文件名) 作为入口文件。
 
-4.  **配置环境变量 (可选但推荐)**:
-    *   在 Deno Deploy 项目的设置中，找到 "Environment Variables"。
-    *   添加一个名为 `OPENROUTER_API_KEY` 的新变量，值为您的 OpenRouter API Key。
-    *   这样做可以避免每次都在前端 UI 输入 API Key，也为 API 代理提供一个默认 Key。
 
-5.  **部署**: 点击 "Link" 或 "Deploy" 按钮，Deno Deploy 将会自动部署您的应用。
+4.  **部署**: 点击 "Link" 或 "Deploy" 按钮，Deno Deploy 将会自动部署您的应用。
 
-6.  **访问**: 部署成功后，您将获得一个 `*.deno.dev` 的 URL，通过该 URL 即可访问您的 Web UI。
+5.  **访问**: 部署成功后，您将获得一个 `*.deno.dev` 的 URL，通过该 URL 即可访问您的 Web UI。
 
 ## 如何使用
 
