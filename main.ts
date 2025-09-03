@@ -45,44 +45,37 @@ serve(async (req) => {
 
     // --- 路由 1: Cherry Studio (Gemini, 流式) ---
     if (pathname.includes(":streamGenerateContent")) {
+        // ... (此部分代码未修改)
         try {
             const geminiRequest = await req.json();
             let apiKey = req.headers.get("Authorization")?.replace("Bearer ", "") || req.headers.get("x-goog-api-key") || "";
             if (!apiKey) { return createJsonErrorResponse("API key is missing.", 401); }
             if (!geminiRequest.contents?.length) { return createJsonErrorResponse("Invalid request: 'contents' array is missing.", 400); }
-            
-            // --- 智能提取逻辑 ---
             const fullHistory = geminiRequest.contents;
             const lastUserMessageIndex = fullHistory.findLastIndex((msg: any) => msg.role === 'user');
             let relevantHistory = (lastUserMessageIndex !== -1) ? fullHistory.slice(fullHistory.findLastIndex((msg: any, idx: number) => msg.role === 'model' && idx < lastUserMessageIndex), lastUserMessageIndex + 1) : [];
             if (relevantHistory.length === 0 && lastUserMessageIndex !== -1) relevantHistory = [fullHistory[lastUserMessageIndex]];
             if (relevantHistory.length === 0) return createJsonErrorResponse("No user message found.", 400);
-
             const openrouterMessages = relevantHistory.map((geminiMsg: any) => {
                 const parts = geminiMsg.parts.map((p: any) => p.text ? {type: "text", text: p.text} : {type: "image_url", image_url: {url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`}});
                 return { role: geminiMsg.role === 'model' ? 'assistant' : 'user', content: parts };
             });
-            
-            // --- 简化后的流处理 ---
             const stream = new ReadableStream({
                 async start(controller) {
                     try {
                         const openRouterResult = await callOpenRouter(openrouterMessages, apiKey);
                         const sendChunk = (data: object) => controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`));
-                        
                         let textToStream = (openRouterResult.type === 'image') ? "好的，图片已生成：" : openRouterResult.content;
                         for (const char of textToStream) {
                             sendChunk({ candidates: [{ content: { role: "model", parts: [{ text: char }] } }] });
                             await new Promise(r => setTimeout(r, 2));
                         }
-                        
                         if (openRouterResult.type === 'image') {
                             const matches = openRouterResult.content.match(/^data:(.+);base64,(.*)$/);
                             if (matches) {
                                 sendChunk({ candidates: [{ content: { role: "model", parts: [{ inlineData: { mimeType: matches[1], data: matches[2] } }] } }] });
                             }
                         }
-                        
                         sendChunk({ candidates: [{ finishReason: "STOP", content: { role: "model", parts: [] } }], usageMetadata: { promptTokenCount: 264, totalTokenCount: 1578 } });
                         controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
                     } catch (e) {
@@ -102,25 +95,22 @@ serve(async (req) => {
 
     // --- 路由 2: Cherry Studio (Gemini, 非流式) ---
     if (pathname.includes(":generateContent")) {
+        // ... (此部分代码未修改)
         try {
             const geminiRequest = await req.json();
             let apiKey = req.headers.get("Authorization")?.replace("Bearer ", "") || req.headers.get("x-goog-api-key") || "";
             if (!apiKey) { return createJsonErrorResponse("API key is missing.", 401); }
             if (!geminiRequest.contents?.length) { return createJsonErrorResponse("Invalid request: 'contents' array is missing.", 400); }
-
             const fullHistory = geminiRequest.contents;
             const lastUserMessageIndex = fullHistory.findLastIndex((msg: any) => msg.role === 'user');
             let relevantHistory = (lastUserMessageIndex !== -1) ? fullHistory.slice(fullHistory.findLastIndex((msg: any, idx: number) => msg.role === 'model' && idx < lastUserMessageIndex), lastUserMessageIndex + 1) : [];
             if (relevantHistory.length === 0 && lastUserMessageIndex !== -1) relevantHistory = [fullHistory[lastUserMessageIndex]];
             if (relevantHistory.length === 0) return createJsonErrorResponse("No user message found.", 400);
-
             const openrouterMessages = relevantHistory.map((geminiMsg: any) => {
                 const parts = geminiMsg.parts.map((p: any) => p.text ? {type: "text", text: p.text} : {type: "image_url", image_url: {url: `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`}});
                 return { role: geminiMsg.role === 'model' ? 'assistant' : 'user', content: parts };
             });
-            
             const openRouterResult = await callOpenRouter(openrouterMessages, apiKey);
-
             const finalParts = [];
             if (openRouterResult.type === 'image') {
                 const matches = openRouterResult.content.match(/^data:(.+);base64,(.*)$/);
@@ -150,28 +140,33 @@ serve(async (req) => {
             
             const webUiMessages = [ { role: "user", content: [ {type: "text", text: prompt}, ...images.map(img => ({type: "image_url", image_url: {url: img}})) ] } ];
             
-            // --- 这里是修改的关键 ---
             const result = await callOpenRouter(webUiMessages, openrouterApiKey);
     
-            // 检查返回的是否是图片类型，并提取 content
-            if (result && result.type === 'image') {
-                // 返回给前端正确的 JSON 结构
+            // --- 这里是修改的关键 ---
+            if (result.type === 'image') {
+                // 成功：返回图片 URL
                 return new Response(JSON.stringify({ imageUrl: result.content }), { 
                     headers: { "Content-Type": "application/json" } 
                 });
             } else {
-                // 如果模型意外地返回了文本或其他内容，则返回错误
-                const errorMessage = result ? `Model returned text instead of an image: ${result.content}` : "Model returned an empty response.";
-                console.error("Error handling /generate request:", errorMessage);
-                return new Response(JSON.stringify({ error: errorMessage }), { 
-                    status: 500, 
+                // 失败但可重试：模型返回了文本，告知前端需要重试
+                console.log(`Model returned text, signaling retry. Content: "${result.content}"`);
+                return new Response(JSON.stringify({ 
+                    retry: true, 
+                    message: `模型返回了文本: ${result.content}` 
+                }), { 
+                    status: 200, // 仍然是 200 OK，但负载内容不同
                     headers: { "Content-Type": "application/json" } 
                 });
             }
             
         } catch (error) {
             console.error("Error handling /generate request:", error);
-            return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+            // 硬错误：直接返回错误信息给前端，不可重试
+            return new Response(JSON.stringify({ error: error.message }), { 
+                status: 500,
+                headers: { "Content-Type": "application/json" } 
+            });
         }
     }
 
