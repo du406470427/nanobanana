@@ -1,3 +1,5 @@
+// --- START OF FILE main.ts ---
+
 import { serve } from "https://deno.land/std@0.200.0/http/server.ts";
 import { serveDir } from "https://deno.land/std@0.200.0/http/file_server.ts";
 import { Buffer } from "https://deno.land/std@0.177.0/node/buffer.ts";
@@ -32,6 +34,14 @@ serve(async (req) => {
     const pathname = new URL(req.url).pathname;
     
     if (req.method === 'OPTIONS') { return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization, x-goog-api-key" } }); }
+
+    // --- 新增路由: 检查 API Key 是否已在环境变量中设置 ---
+    if (pathname === "/api/key-status") {
+        const isSet = !!Deno.env.get("OPENROUTER_API_KEY");
+        return new Response(JSON.stringify({ isSet }), {
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+    }
 
     // --- 路由 1: Cherry Studio (Gemini, 流式) ---
     if (pathname.includes(":streamGenerateContent")) {
@@ -168,3 +178,5 @@ serve(async (req) => {
     // --- 路由 4: 静态文件服务 ---
     return serveDir(req, { fsRoot: "static", urlRoot: "", showDirListing: true, enableCors: true });
 });
+
+// --- END OF FILE main.ts ---
