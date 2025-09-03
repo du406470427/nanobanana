@@ -2,8 +2,6 @@
 
 [中文](./README.md)
 
-[![Deploy to Deno](https://deno.com/deploy-button.svg)](https://deno.com/deploy?url=https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/main.ts)
-
 A powerful dual-purpose service: it acts as both a **Google Gemini API-compatible proxy for OpenRouter** and provides an intuitive **Web User Interface** for easy interaction with multimodal models for text-to-image and image-to-text generation.
 
 ---
@@ -37,10 +35,6 @@ Click the badge above to watch a live demonstration of the project's features.
 ---
 
 ## 🚀 Deploy to Deno Deploy
-
-Deployment is incredibly simple. Just click the button below or follow the manual steps:
-
-[![Deploy to Deno](https://deno.com/deploy-button.svg)](https://deno.com/deploy?url=https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/main.ts)
 
 **Manual Steps:**
 
