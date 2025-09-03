@@ -2,7 +2,6 @@
 
 [English](./README.en.md)
 
-[![Deploy to Deno](https://deno.com/deploy-button.svg)](https://deno.com/deploy?url=https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPOSITORY/main/main.ts)
 
 一个功能强大的双用途服务：既是一个**兼容 Google Gemini API 的 OpenRouter 代理服务器**，又提供了一个直观的 **Web 用户界面**，让您可以轻松地与多模态模型进行交互，实现文生图、图生文等功能。
 
