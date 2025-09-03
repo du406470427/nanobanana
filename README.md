@@ -47,7 +47,7 @@
 
 - **前端**: HTML, CSS, JavaScript (无框架)
 - **后端**: Deno, Deno Standard Library
-- **AI 模型**: 通过 OpenRouter 代理，默认为 `google/gemini-2.5-flash-image-preview:free`，但可由 API 请求指定其他模型。
+- **AI 模型**: 通过 OpenRouter 代理，默认为 `google/gemini-2.5-flash-image-preview:free`
 
 ## 如何部署到 Deno Deploy
 
@@ -78,7 +78,7 @@
 3.  (可选) 点击 "选择图片" 上传一张或多张图片。
 4.  在 "输入提示词..." 文本框中输入您的想法。
 5.  点击 "生成" 按钮。
-6.  等待片刻，生成的图片或文本将显示在下方。
+6.  等待片刻，生成的图片显示右侧
 
 ### 方式二：作为 API 代理 (开发者)
 
