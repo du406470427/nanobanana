@@ -74,7 +74,7 @@ h2 {
     font-weight: 500;
 }
 
-.upload-section, .prompt-section, .api-key-section {
+.upload-section, .prompt-section, .api-key-section, .model-section {
     margin-bottom: 2rem;
 }
 
@@ -166,6 +166,43 @@ textarea, input[type="password"] {
 
 input[type="password"] {
     min-height: auto;
+}
+
+.model-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.model-option {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background: #252525;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.model-option:hover {
+    border-color: #f97316;
+    background: #2a2a2a;
+}
+
+.model-option input[type="radio"] {
+    margin-right: 0.5rem;
+}
+
+.model-name {
+    font-weight: 500;
+    color: #e0e0e0;
+    margin-bottom: 0.25rem;
+}
+
+.model-desc {
+    font-size: 0.9rem;
+    color: #888;
 }
 
 #generate-btn {
