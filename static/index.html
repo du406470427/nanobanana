@@ -16,6 +16,21 @@
                 <h2>设置</h2>
                 <input type="password" id="api-key-input" placeholder="输入你的 OpenRouter API 密钥 (必填)">
             </div>
+            <div class="model-section">
+                <h2>选择模型</h2>
+                <div class="model-selector">
+                    <label class="model-option">
+                        <input type="radio" name="model" value="google/gemini-2.5-flash-image-preview:free" checked>
+                        <span class="model-name">Gemini 2.5 Flash (免费版)</span>
+                        <span class="model-desc">适合测试和轻度使用</span>
+                    </label>
+                    <label class="model-option">
+                        <input type="radio" name="model" value="google/gemini-2.5-flash-image-preview">
+                        <span class="model-name">Gemini 2.5 Flash (正式版)</span>
+                        <span class="model-desc">更稳定，适合生产环境</span>
+                    </label>
+                </div>
+            </div>
             <div class="upload-section">
                 <h2>1. 上传图片</h2>
                 <div class="upload-area">
