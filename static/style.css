@@ -8,7 +8,7 @@ body {
     background-color: #121212;
     color: #e0e0e0;
     margin: 0;
-    padding: 1rem;
+    padding: 2rem;
     min-height: 100vh;
     box-sizing: border-box;
 }
@@ -21,51 +21,6 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 0.2rem; /* 减小与副标题的距离 */
-}
-
-/* 模型选择器样式 */
-.model-select-section {
-    margin: 1rem 0;
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    justify-content: center;
-}
-
-.model-tabs {
-    display: flex;
-    background: #252525;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #444;
-}
-
-.model-tab {
-    padding: 8px 16px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    background: transparent;
-    border: none;
-    color: #e0e0e0;
-    transition: all 0.2s ease;
-    border-right: 1px solid #444;
-}
-
-.model-tab:last-child {
-    border-right: none;
-}
-
-.model-tab:hover {
-    background: #2d2d2d;
-}
-
-.model-tab.selected {
-    background: #4CAF50;
-    color: white;
-}
-
-.model-tab:active {
-    background: #45a049;
 }
 
 .title span {
