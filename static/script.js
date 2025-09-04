@@ -6,22 +6,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const thumbnailsContainer = document.getElementById('thumbnails-container');
     const promptInput = document.getElementById('prompt-input');
     const apiKeyInput = document.getElementById('api-key-input');
+let selectedModel = 'google/gemini-2.5-flash-image-preview:free';
     const generateBtn = document.getElementById('generate-btn');
     const btnText = generateBtn.querySelector('.btn-text');
     const spinner = generateBtn.querySelector('.spinner');
     const resultContainer = document.getElementById('result-image-container');
     const apiKeySection = document.querySelector('.api-key-section');
 
+    // 模型选择事件监听
+    document.querySelectorAll('.model-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.model-tab').forEach(t => t.classList.remove('selected'));
+            tab.classList.add('selected');
+            selectedModel = tab.dataset.model;
+        });
+    });
+
     let selectedFiles = [];
 
     try {
         const response = await fetch('/api/key-status');
-        if (response.ok) {
-            const data = await response.json();
-            if (data.isSet) {
-                apiKeySection.style.display = 'none';
+            if (response.ok) {
+                const data = await response.json();
+                if (data.isSet) {
+                    apiKeySection.style.display = 'none';
+                }
             }
-        }
     } catch (error) {
         console.error("无法检查 API key 状态:", error);
     }
@@ -115,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const response = await fetch('/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody)
+                        body: JSON.stringify({...requestBody, model: selectedModel})
                     });
                     
                     if (!response.ok) {
