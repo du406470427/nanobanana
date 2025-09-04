@@ -14,10 +14,9 @@ function createJsonErrorResponse(message: string, statusCode = 500) {
 }
 
 // --- 核心业务逻辑：调用 OpenRouter ---
-async function callOpenRouter(messages: any[], apiKey: string): Promise<{ type: 'image' | 'text'; content: string }> {
+async function callOpenRouter(messages: any[], apiKey: string, model: string = "google/gemini-2.5-flash-image-preview:free"): Promise<{ type: 'image' | 'text'; content: string }> {
     if (!apiKey) { throw new Error("callOpenRouter received an empty apiKey."); }
-    // 注意：模型名称可能需要根据您的具体需求调整，这里使用您代码中提供的模型
-    const openrouterPayload = { model: "google/gemini-2.5-flash-image-preview:free", messages };
+    const openrouterPayload = { model, messages };
     console.log("Sending payload to OpenRouter:", JSON.stringify(openrouterPayload, null, 2));
     const apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST", headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -156,7 +155,7 @@ serve(async (req) => {
     // ############ START OF MODIFIED SECTION ############
     if (pathname === "/generate") {
         try {
-            const { prompt, images, apikey } = await req.json();
+            const { prompt, images, apikey, model } = await req.json();
             const openrouterApiKey = apikey || Deno.env.get("OPENROUTER_API_KEY");
 
             if (!openrouterApiKey) {
@@ -183,8 +182,9 @@ serve(async (req) => {
             }
 
             const webUiMessages = [{ role: "user", content: contentPayload }];
+            const selectedModel = model || "google/gemini-2.5-flash-image-preview:free";
             
-            const result = await callOpenRouter(webUiMessages, openrouterApiKey);
+            const result = await callOpenRouter(webUiMessages, openrouterApiKey, selectedModel);
     
             // [修改 3]: 根据返回类型构建不同的成功响应
             if (result.type === 'image') {
