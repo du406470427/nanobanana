@@ -2,7 +2,7 @@
 
 [English](./README.en.md)
 
-
+# 注意 目前免费的 nanobanana 已经从openrouter 下架了！，没有免费了，只能部署付费的！！！！
 一个功能强大的双用途服务：既是一个**兼容 Google Gemini API 的 OpenRouter 代理服务器**，又提供了一个直观的 **Web 用户界面**，让您可以轻松地与多模态模型进行交互，实现文生图、图生文等功能。
 
 ---
@@ -108,7 +108,7 @@ curl -X POST https://nanobanana.deno.dev/v1beta/models/gemini-pro:generateConten
 
 -   **前端**: HTML, CSS, JavaScript (原生，无框架)
 -   **后端**: Deno, Deno Standard Library
--   **AI 模型**: 通过 [OpenRouter](https://openrouter.ai/) 代理, 默认为 `google/gemini-2.5-flash-image-preview:free`
+-   **AI 模型**: 通过 [OpenRouter](https://openrouter.ai/) 代理, 默认为 `google/gemini-2.5-flash-image-preview`
 
 ---
 
