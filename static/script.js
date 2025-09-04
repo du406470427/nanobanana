@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("无法检查 API key 状态:", error);
     }
 
-    // ... (拖放和文件处理等未修改的代码)
+    // --- 文件拖放和选择的逻辑 (未修改) ---
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         uploadArea.addEventListener(eventName, preventDefaults, false);
     });
@@ -75,35 +75,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.readAsDataURL(file);
     }
 
-    // --- 核心修改区域：增加了重试逻辑 ---
+    // ############ START OF MODIFIED SECTION ############
+
+    // --- 核心修改：生成按钮的点击事件 ---
     generateBtn.addEventListener('click', async () => {
+        // [修改 1] 只验证 API Key 和提示词
         if (apiKeySection.style.display !== 'none' && !apiKeyInput.value.trim()) {
             alert('请输入 OpenRouter API 密钥');
             return;
         }
-        if (selectedFiles.length === 0) {
-            alert('请选择至少一张图片');
-            return;
-        }
+        // [关键修改] 移除了对 selectedFiles.length === 0 的检查
         if (!promptInput.value.trim()) {
             alert('请输入提示词');
             return;
         }
 
         setLoading(true);
-        
-        const maxRetries = 3;
         let lastError = '未知错误';
 
         try {
+            // 准备请求数据，images 数组在没有选择文件时会是一个空数组 []
             const base64Images = await Promise.all(selectedFiles.map(file => fileToBase64(file)));
-            
+            const requestBody = {
+                prompt: promptInput.value,
+                images: base64Images,
+                apikey: apiKeyInput.value
+            };
+
+            const maxRetries = 3;
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    // 如果不是第一次尝试，显示重试信息
                     if (attempt > 1) {
-                        updateResultStatus(`仅收到文本，正在重新请求... (第 ${attempt}/${maxRetries} 次)`);
-                        // 等待1秒再重试
+                        updateResultStatus(`模型未返回图片，正在重试... (第 ${attempt}/${maxRetries} 次)`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } else {
                         updateResultStatus('正在请求模型...');
@@ -112,49 +115,40 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const response = await fetch('/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            prompt: promptInput.value,
-                            images: base64Images,
-                            apikey: apiKeyInput.value
-                        })
+                        body: JSON.stringify(requestBody)
                     });
-
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`服务器错误: ${response.status} - ${errorText}`);
+                    }
                     const data = await response.json();
 
-                    // 硬错误，直接抛出并终止循环
+                    // 后端返回明确错误，直接抛出，终止重试
                     if (data.error) {
                         throw new Error(data.error);
                     }
 
-                    // 成功，显示图片并跳出循环
+                    // [成功条件] 只有返回 imageUrl 才算成功
                     if (data.imageUrl) {
                         displayResult(data.imageUrl);
                         return; // 成功后直接退出函数
                     }
                     
-                    // 软错误（可重试），记录信息，循环将继续
-                    if (data.retry) {
-                        console.warn(`Attempt ${attempt} failed: ${data.message}`);
-                        lastError = `模型连续返回文本，最后一次信息: "${data.message}"`;
-                        continue; // 继续下一次循环
-                    }
-
-                    // 未知响应格式
-                    throw new Error('收到了未知的服务器响应');
+                    // [重试条件] 任何其他情况（包括收到文本）都视为需要重试
+                    lastError = data.text ? `模型返回了文本: "${data.text}"` : '模型返回了未知格式的数据';
+                    // continue 会自动进入下一次循环
 
                 } catch (error) {
-                    // 捕获 fetch 错误或硬错误
-                    console.error(`Attempt ${attempt} failed with error:`, error);
+                    // 捕获 fetch 错误或上面抛出的硬错误
+                    console.error(`尝试 ${attempt} 失败:`, error);
                     lastError = error.message;
-                    // 如果是网络或严重错误，可能不需要继续重试
-                    if (attempt >= maxRetries) {
-                        throw new Error(lastError);
-                    }
+                    // 如果错误严重，或者已经是最后一次尝试，则循环将在下次检查时终止
                 }
             }
 
             // 如果循环结束还没有成功返回，则说明所有重试都失败了
-            throw new Error(`尝试 ${maxRetries} 次后仍无法生成图片。`);
+            throw new Error(`尝试 ${maxRetries} 次后仍无法生成图片。最后错误: ${lastError}`);
 
         } catch (error) {
             // 最终的错误处理
@@ -164,7 +158,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             setLoading(false);
         }
     });
-    // --- 核心修改区域结束 ---
+    
+    // ############ END OF MODIFIED SECTION ############
 
     function setLoading(isLoading) {
         generateBtn.disabled = isLoading;
@@ -181,9 +176,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // 新增：用于在结果区域显示状态文本
     function updateResultStatus(text) {
-        resultContainer.innerHTML = `<p>${text}</p>`;
+        resultContainer.innerHTML = `<p class="status-text">${text}</p>`;
     }
 
     function displayResult(imageUrl) {
