@@ -9,28 +9,24 @@
 </head>
 <body>
     <h1 class="title">🍌 nano banana</h1>
-    <p class="subtitle">(模型: google/gemini-2.5-flash-image-preview:free)</p>
+    
+    <div class="model-select-section">
+        <div class="model-tabs">
+            <div class="model-tab selected" data-model="google/gemini-2.5-flash-image-preview:free">
+                free版(每天5次)
+            </div>
+            <div class="model-tab" data-model="google/gemini-2.5-flash-image-preview">
+                正式版(需付费)
+            </div>
+        </div>
+    </div>
+    
     <div class="main-container">
         <div class="controls-container">
-            <div class="api-key-section">
-                <h2>设置</h2>
-                <input type="password" id="api-key-input" placeholder="输入你的 OpenRouter API 密钥 (必填)">
-            </div>
-            <div class="model-section">
-                <h2>选择模型</h2>
-                <div class="model-selector">
-                    <label class="model-option">
-                        <input type="radio" name="model" value="google/gemini-2.5-flash-image-preview:free" checked>
-                        <span class="model-name">Gemini 2.5 Flash (免费版)</span>
-                        <span class="model-desc">适合测试和轻度使用</span>
-                    </label>
-                    <label class="model-option">
-                        <input type="radio" name="model" value="google/gemini-2.5-flash-image-preview">
-                        <span class="model-name">Gemini 2.5 Flash (正式版)</span>
-                        <span class="model-desc">更稳定，适合生产环境</span>
-                    </label>
-                </div>
-            </div>
+        <div class="api-key-section">
+                 <h2>设置</h2>
+                 <input type="password" id="api-key-input" placeholder="输入你的 OpenRouter API 密钥 (必填)">
+             </div>
             <div class="upload-section">
                 <h2>1. 上传图片</h2>
                 <div class="upload-area">
