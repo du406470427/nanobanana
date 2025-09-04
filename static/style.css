@@ -23,6 +23,51 @@ body {
     margin-bottom: 0.2rem; /* 减小与副标题的距离 */
 }
 
+/* 模型选择器样式 */
+.model-select-section {
+    margin: 1rem 0;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    justify-content: center;
+}
+
+.model-tabs {
+    display: flex;
+    background: #252525;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #444;
+}
+
+.model-tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    background: transparent;
+    border: none;
+    color: #e0e0e0;
+    transition: all 0.2s ease;
+    border-right: 1px solid #444;
+}
+
+.model-tab:last-child {
+    border-right: none;
+}
+
+.model-tab:hover {
+    background: #2d2d2d;
+}
+
+.model-tab.selected {
+    background: #4CAF50;
+    color: white;
+}
+
+.model-tab:active {
+    background: #45a049;
+}
+
 .title span {
     background: linear-gradient(90deg, #fde047, #f97316, #ef4444);
     -webkit-background-clip: text;
@@ -74,7 +119,7 @@ h2 {
     font-weight: 500;
 }
 
-.upload-section, .prompt-section, .api-key-section, .model-section {
+.upload-section, .prompt-section, .api-key-section {
     margin-bottom: 2rem;
 }
 
@@ -166,43 +211,6 @@ textarea, input[type="password"] {
 
 input[type="password"] {
     min-height: auto;
-}
-
-.model-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.model-option {
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-    border: 1px solid #444;
-    border-radius: 8px;
-    background: #252525;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.model-option:hover {
-    border-color: #f97316;
-    background: #2a2a2a;
-}
-
-.model-option input[type="radio"] {
-    margin-right: 0.5rem;
-}
-
-.model-name {
-    font-weight: 500;
-    color: #e0e0e0;
-    margin-bottom: 0.25rem;
-}
-
-.model-desc {
-    font-size: 0.9rem;
-    color: #888;
 }
 
 #generate-btn {
