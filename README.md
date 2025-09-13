@@ -43,6 +43,9 @@
     *   添加 `MODELSCOPE_API_KEY`，值为您的 ModelScope 密钥（用于 Qwen, Flux 等）。
     *   添加 `OPENROUTER_API_KEYS`，值为您的 OpenRouter 密钥（用于 Nano Banana）。
     *   *提示: 您可以添加多个由逗号分隔的密钥 (例如 `key1,key2,key3`) 来实现负载均衡。*
+    *   **没有密钥？**
+        *   [如何注册 ModelScope API 密钥](https://x230rpqk6u.feishu.cn/wiki/AJxKwmleQiUovZkZZOJc4mp4n5g)
+        *   [如何注册 OpenRouter API 密钥](https://x230rpqk6u.feishu.cn/wiki/FptCw2H1ViN7QwkhT16cMTDPnCe)
 5.  **部署**: 点击 "Link" 或 "Deploy" 按钮，您的 AI 图片生成中心就上线了！
 
 ---
@@ -50,7 +53,7 @@
 ## 🛠️ 如何使用
 
 1.  打开您部署后的 `*.deno.dev` URL。
-2.  如果您没有在部署时设置环境变量，请在所选模型的“设置”区域输入对应的 API Key。
+2.  如果您没有在部署时设置环境变量，请在所选模型的“设置”区域输入对应的 API Key。（如没有密钥，请参考上方“部署”部分的教程链接）。
 3.  **对于文生图模型 (Qwen, Flux 等)**:
     *   输入您的正向和负向提示词。
     *   调整分辨率、步数、引导系数等参数。
