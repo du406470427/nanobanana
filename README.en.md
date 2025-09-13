@@ -43,6 +43,9 @@ Built with a robust Deno backend, it offers a seamless and professional-grade cr
     *   Add `MODELSCOPE_API_KEY` with your key for Qwen, Flux, etc.
     *   Add `OPENROUTER_API_KEYS` with your key(s) for the Nano Banana model.
     *   *Tip: You can add multiple keys separated by commas (e.g., `key1,key2,key3`) for load balancing.*
+    *   **Need a key?**
+        *   [How to get a ModelScope API key](https://x230rpqk6u.feishu.cn/wiki/AJxKwmleQiUovZkZZOJc4mp4n5g)
+        *   [How to get an OpenRouter API key](https://x230rpqk6u.feishu.cn/wiki/FptCw2H1ViN7QwkhT16cMTDPnCe)
 5.  **Deploy**: Click the "Link" or "Deploy" button. Your AI Image Generation Hub is now live!
 
 ---
@@ -50,7 +53,7 @@ Built with a robust Deno backend, it offers a seamless and professional-grade cr
 ## 🛠️ How to Use
 
 1.  Open your deployed `*.deno.dev` URL.
-2.  If you haven't set the environment variables, enter the required API Key in the "Settings" section of the selected model.
+2.  If you haven't set the environment variables, enter the required API Key in the "Settings" section of the selected model. (Don't have a key? See the links in the "Deploy" section above).
 3.  **For Text-to-Image Models (Qwen, Flux, etc.)**:
     *   Enter your positive and negative prompts.
     *   Adjust parameters like resolution, steps, and guidance.
