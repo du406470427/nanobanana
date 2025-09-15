@@ -35,15 +35,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const seedInput = document.getElementById('seed-input');
 
     // --- 状态变量 ---
-    let selectedFiles = []; // This will be handled by the new cache
+    let selectedFiles = [];
     let currentModel = 'Qwen/Qwen-Image';
     
-    // [重构] 引入统一的状态管理器
     const modelStates = {};
     modelCards.forEach(card => {
         const modelId = card.dataset.model;
         modelStates[modelId] = {
-            // 输入参数缓存
             inputs: {
                 prompt: '',
                 negative_prompt: '',
@@ -52,14 +50,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 guidance: 3.5,
                 seed: -1,
                 count: 1,
-                files: [] // For nanobanana
+                files: []
             },
-            // 任务状态缓存
             task: {
                 isRunning: false,
                 statusText: ''
             },
-            // 结果缓存
             results: []
         };
     });
@@ -67,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 初始化函数 ---
     function initialize() {
         setupTheme();
-        loadStateForCurrentModel(); // [修改] 加载初始模型状态
+        loadStateForCurrentModel();
         setupInputValidation();
         setUniformButtonWidth();
         updateHighlightPosition();
@@ -82,14 +78,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }).catch(error => console.error("无法检查 ModelScope API key 状态:", error));
     }
     
-    // [新增] 状态管理核心函数
     function saveStateForModel(modelId) {
         const state = modelStates[modelId];
         if (!state) return;
         
         if (modelId === 'nanobanana') {
             state.inputs.prompt = promptNanoBananaInput.value;
-            state.inputs.files = selectedFiles; // selectedFiles is the live array
+            state.inputs.files = selectedFiles;
         } else {
             state.inputs.prompt = promptPositiveInput.value;
             state.inputs.negative_prompt = promptNegativeInput.value;
@@ -124,7 +119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // 恢复UI状态
         if (state.task.isRunning) {
             updateResultStatusWithSpinner(state.task.statusText || '正在生成中...');
         } else if (state.results.length > 0) {
@@ -139,7 +133,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function clearResults() { mainResultImageContainer.innerHTML = `<p>生成的图片将显示在这里</p>`; resultThumbnailsContainer.innerHTML = ''; }
     
-    // --- 事件监听和UI更新 ---
     function setupModalListeners() {
         closeModalBtn.onclick = () => { fullscreenModal.classList.add('hidden'); };
         fullscreenModal.onclick = (e) => { if (e.target === fullscreenModal) { fullscreenModal.classList.add('hidden'); } };
@@ -210,13 +203,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         setLoading(isTaskRunning, currentButton, btnText, spinner);
     }
 
+
     modelCards.forEach(card => {
         card.addEventListener('click', () => {
-            saveStateForModel(currentModel); // 保存旧模型的状态
+            saveStateForModel(currentModel);
             currentModel = card.dataset.model;
             modelCards.forEach(c => c.classList.remove('active'));
             card.classList.add('active');
-            loadStateForCurrentModel(); // 加载新模型的状态
+            loadStateForCurrentModel();
             updateHighlightPosition();
         });
     });
@@ -237,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert('当前模型有任务正在生成中，请稍候...');
                 return;
             }
-            saveStateForModel(modelToGenerate); // 点击生成时也保存一次当前输入
+            saveStateForModel(modelToGenerate);
             runGenerationTask(modelToGenerate, btn);
         });
     });
@@ -320,13 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const timeoutPerRequest = isQwen ? 120 * 1000 : 180 * 1000;
         const totalTimeout = isQwen ? 360 * 1000 : timeoutPerRequest;
         
-        const baseRequestBody = {
-            model: currentModel,
-            apikey: apiKeyModelScopeInput.value,
-            parameters: { prompt: inputs.prompt, negative_prompt: inputs.negative_prompt, size: inputs.size, steps: inputs.steps, guidance: inputs.guidance, seed: inputs.seed },
-            timeout: timeoutPerRequest / 1000
-        };
-
+        const baseRequestBody = { model: currentModel, apikey: apiKeyModelScopeInput.value, parameters: { prompt: inputs.prompt, negative_prompt: inputs.negative_prompt, size: inputs.size, steps: inputs.steps, guidance: inputs.guidance, seed: inputs.seed }, timeout: timeoutPerRequest / 1000 };
         const results = [];
         const controller = new AbortController();
         const overallTimeoutId = setTimeout(() => controller.abort(), totalTimeout);
@@ -407,16 +395,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['dragleave', 'drop'].forEach(eventName => uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('drag-over')));
     uploadArea.addEventListener('drop', (e) => handleFiles(Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'))));
     fileInput.addEventListener('change', (e) => handleFiles(Array.from(e.target.files).filter(file => file.type.startsWith('image/'))));
+    
+    // [修正] 移除 handleFiles 函数中的重置逻辑
     function handleFiles(files) {
-        selectedFiles = []; // Reset before adding new files from this action
         files.forEach(file => {
              if (!selectedFiles.some(f => f.name === file.name)) {
                 selectedFiles.push(file);
+                createThumbnail(file);
              }
         });
-        thumbnailsContainer.innerHTML = '';
-        selectedFiles.forEach(createThumbnail);
     }
+
     function createThumbnail(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
