@@ -4,7 +4,7 @@
 
 一个先进、一体化的 AI 图片生成 Web 应用平台。本项目提供了一个直观的 **Web 用户界面**，让您可以与一系列强大的文生图模型进行交互，包括 **Qwen-Image (通义万相)、Flux、Kontext、Krea**，以及多模态模型 **Nano Banana**。
 
-项目基于强大的 Deno 后端构建，旨在提供一个无缝衔接且具备专业级水准的创作体验。
+项目基于强大的 Deno 后端构建，旨在提供一个无缝衔接且具备专业级水准的创作体验，支持一键部署到 Deno Deploy。
 
 ---
 
@@ -41,6 +41,7 @@
 4.  **(推荐) 添加环境变量**:
     *   进入项目的 "Settings" -> "Environment Variables"。
     *   添加 `MODELSCOPE_API_KEY`，值为您的 ModelScope 密钥（用于 Qwen, Flux 等）。
+    *   添加 `VOLCENGINE_API_KEY`，值为您的火山引擎密钥（用于新模型）。
     *   添加 `OPENROUTER_API_KEYS`，值为您的 OpenRouter 密钥（用于 Nano Banana）。
     *   *提示: 您可以添加多个由逗号分隔的密钥 (例如 `key1,key2,key3`) 来实现负载均衡。*
     *   **没有密钥？**

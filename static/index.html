@@ -28,6 +28,7 @@
         <div class="model-card" data-model="MusePublic/FLUX.1-Kontext-Dev">Kontext</div>
         <div class="model-card" data-model="black-forest-labs/FLUX.1-Krea-dev">Krea</div>
         <div class="model-card" data-model="nanobanana">Nano Banana</div>
+        <div class="model-card" data-model="volcengine">即梦生图</div>
     </div>
 
     <div class="main-container">
@@ -118,6 +119,43 @@
                     </div>
                 </div>
                  <!-- ModelScope 专用的生成按钮 -->
+                <button class="generate-btn">
+                    <span class="btn-text">生成</span>
+                    <span class="spinner hidden"></span>
+                </button>
+            </div>
+
+            <!-- ======================================================= -->
+            <!-- Volcengine 模型的控制面板                               -->
+            <!-- ======================================================= -->
+            <div id="volcengine-controls" class="hidden">
+                <div class="api-key-section">
+                    <h2>设置 <span class="prompt-remark">(密钥格式: AccessKeyId:SecretAccessKey)</span></h2>
+                    <input type="password" id="api-key-input-volcengine" placeholder="请填入火山引擎的 API Key (格式: AccessKeyId:SecretAccessKey)">
+                </div>
+                <div class="prompt-section">
+                    <h2>提示词 <span id="volcengine-prompt-remark" class="prompt-remark"></span></h2>
+                    <textarea id="prompt-input-volcengine" placeholder="例如：A beautiful landscape, masterpiece, best quality"></textarea>
+                </div>
+                <div class="settings-section">
+                    <div class="setting-item">
+                        <label for="volcengine-size-select">分辨率</label>
+                        <select id="volcengine-size-select">
+                            <option value="2048x2048">1:1 - 2048x2048 (2K)</option>
+                            <option value="2560x1440">16:9 - 2560x1440 (2K)</option>
+                            <option value="1440x2560">9:16 - 1440x2560 (2K)</option>
+                            <option value="2304x1728">4:3 - 2304x1728 (2K)</option>
+                            <option value="1728x2304">3:4 - 1728x2304 (2K)</option>
+                            <option value="4096x4096">1:1 - 4096x4096 (4K)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="volcengine-force-single">强制单图</label>
+                        <input type="checkbox" id="volcengine-force-single" checked>
+                        <span class="param-note">勾选后只生成一张图片，取消勾选可生成多张相关图片</span>
+                    </div>
+                </div>
+                 <!-- Volcengine 专用的生成按钮 -->
                 <button class="generate-btn">
                     <span class="btn-text">生成</span>
                     <span class="spinner hidden"></span>

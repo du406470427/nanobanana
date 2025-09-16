@@ -6,8 +6,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modelCards = document.querySelectorAll('.model-card');
     const nanobananaControls = document.getElementById('nanobanana-controls');
     const modelscopeControls = document.getElementById('modelscope-controls');
+    const volcengineControls = document.getElementById('volcengine-controls');
     const apiKeyOpenRouterInput = document.getElementById('api-key-input-openrouter');
     const apiKeyModelScopeInput = document.getElementById('api-key-input-modelscope');
+    const apiKeyVolcengineInput = document.getElementById('api-key-input-volcengine');
     const generateBtns = document.querySelectorAll('.generate-btn');
 
     const countButtons = document.querySelectorAll('.count-btn');
@@ -17,6 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nanobananaPromptRemark = document.getElementById('nanobanana-prompt-remark');
     const modelscopePromptRemark = document.getElementById('modelscope-prompt-remark');
     const modelscopeNegativePromptRemark = document.getElementById('modelscope-negative-prompt-remark');
+    const volcenginePromptRemark = document.getElementById('volcengine-prompt-remark');
+    // volcengineNegativePromptRemark 已删除
 
     const fullscreenModal = document.getElementById('fullscreen-modal');
     const modalImage = document.getElementById('modal-image');
@@ -34,6 +38,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const guidanceInput = document.getElementById('guidance-input');
     const seedInput = document.getElementById('seed-input');
 
+    // Volcengine 输入元素
+    const promptVolcengineInput = document.getElementById('prompt-input-volcengine');
+    const volcengineSizeSelect = document.getElementById('volcengine-size-select');
+    const volcengineForceSingleInput = document.getElementById('volcengine-force-single');
+
     // --- 状态变量 ---
     let selectedFiles = [];
     let currentModel = 'Qwen/Qwen-Image';
@@ -41,27 +50,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modelStates = {};
     modelCards.forEach(card => {
         const modelId = card.dataset.model;
-        modelStates[modelId] = {
-            inputs: {
-                prompt: '',
-                negative_prompt: '',
-                size: '1328x1328',
-                steps: 30,
-                guidance: 3.5,
-                seed: -1,
-                count: 1,
-                files: []
-            },
-            task: {
-                isRunning: false,
-                statusText: ''
-            },
-            results: []
-        };
+        if (modelId === 'volcengine') {
+            modelStates[modelId] = {
+                inputs: {
+                    prompt: '',
+                    size: '2048x2048',
+                    force_single: true,
+                    files: []
+                },
+                task: {
+                    isRunning: false,
+                    statusText: ''
+                },
+                results: []
+            };
+        } else {
+            modelStates[modelId] = {
+                inputs: {
+                    prompt: '',
+                    negative_prompt: '',
+                    size: '1328x1328',
+                    steps: 30,
+                    guidance: 3.5,
+                    seed: -1,
+                    count: 1,
+                    files: []
+                },
+                task: {
+                    isRunning: false,
+                    statusText: ''
+                },
+                results: []
+            };
+        }
     });
 
     // --- 初始化函数 ---
-    function initialize() {
+    async function initialize() {
         setupTheme();
         loadStateForCurrentModel();
         setupInputValidation();
@@ -69,13 +94,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateHighlightPosition();
         setupModalListeners();
         
-        fetch('/api/key-status').then(res => res.json()).then(data => {
-            if (data.isSet) { apiKeyOpenRouterInput.parentElement.style.display = 'none'; }
-        }).catch(error => console.error("无法检查 OpenRouter API key 状态:", error));
+        // 检查 OpenRouter API Key 状态
+        try {
+            const response = await fetch('/api/key-status');
+            const data = await response.json();
+            if (data.isSet) { 
+                apiKeyOpenRouterInput.parentElement.style.display = 'none'; 
+            }
+        } catch (error) {
+            console.error("无法检查 OpenRouter API key 状态:", error);
+        }
 
-        fetch('/api/modelscope-key-status').then(res => res.json()).then(data => {
-            if (data.isSet) { apiKeyModelScopeInput.parentElement.style.display = 'none'; }
-        }).catch(error => console.error("无法检查 ModelScope API key 状态:", error));
+        // 检查 ModelScope API Key 状态
+        try {
+            modelHandlers.modelscope.isApiKeyChecking = true;
+            const response = await fetch('/api/modelscope-key-status');
+            const data = await response.json();
+            modelHandlers.modelscope.isApiKeySet = data.isSet;
+            updateKeyStatus("modelscope");
+            if (data.isSet) { 
+                apiKeyModelScopeInput.parentElement.style.display = 'none'; 
+            }
+        } catch (error) {
+            console.error("无法检查 ModelScope API key 状态:", error);
+        } finally {
+            modelHandlers.modelscope.isApiKeyChecking = false;
+        }
+
+        // 检查 Volcengine API Key 状态
+        try {
+            modelHandlers.volcengine.isApiKeyChecking = true;
+            const response = await fetch("/api/volcengine-key-status");
+            const data = await response.json();
+            modelHandlers.volcengine.isApiKeySet = data.isSet;
+            updateKeyStatus("volcengine");
+        } catch (error) {
+            console.error("Error checking Volcengine key:", error);
+        } finally {
+            modelHandlers.volcengine.isApiKeyChecking = false;
+        }
     }
     
     function saveStateForModel(modelId) {
@@ -85,6 +142,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (modelId === 'nanobanana') {
             state.inputs.prompt = promptNanoBananaInput.value;
             state.inputs.files = selectedFiles;
+        } else if (modelId === 'volcengine') {
+            state.inputs.prompt = promptVolcengineInput.value;
+            state.inputs.size = volcengineSizeSelect.value;
+            state.inputs.force_single = volcengineForceSingleInput.checked;
         } else {
             state.inputs.prompt = promptPositiveInput.value;
             state.inputs.negative_prompt = promptNegativeInput.value;
@@ -104,9 +165,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (currentModel === 'nanobanana') {
             promptNanoBananaInput.value = state.inputs.prompt;
-            selectedFiles = state.inputs.files;
+            state.inputs.files = selectedFiles;
             thumbnailsContainer.innerHTML = '';
             selectedFiles.forEach(createThumbnail);
+        } else if (currentModel === 'volcengine') {
+            promptVolcengineInput.value = state.inputs.prompt;
+            volcengineSizeSelect.value = state.inputs.size;
+            volcengineForceSingleInput.checked = state.inputs.force_single !== undefined ? state.inputs.force_single : true;
         } else {
             promptPositiveInput.value = state.inputs.prompt;
             promptNegativeInput.value = state.inputs.negative_prompt;
@@ -162,18 +227,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateActiveModelUI() {
-        if (currentModel === 'nanobanana') { nanobananaControls.classList.remove('hidden'); modelscopeControls.classList.add('hidden'); } 
-        else { nanobananaControls.classList.add('hidden'); modelscopeControls.classList.remove('hidden'); }
-        nanobananaPromptRemark.textContent = ''; modelscopePromptRemark.textContent = ''; modelscopeNegativePromptRemark.textContent = '';
-        if (currentModel === 'nanobanana') { nanobananaPromptRemark.textContent = '(支持中文提示词)'; } 
-        else { let remarkText = ''; if (currentModel === 'Qwen/Qwen-Image') { remarkText = '(支持中文提示词)'; } else if (currentModel.includes('FLUX') || currentModel.includes('Kontext') || currentModel.includes('Krea')) { remarkText = '(请使用英文提示词)'; } modelscopePromptRemark.textContent = remarkText; modelscopeNegativePromptRemark.textContent = remarkText; }
+        // 隐藏所有控制面板
+        nanobananaControls.classList.add('hidden');
+        modelscopeControls.classList.add('hidden');
+        volcengineControls.classList.add('hidden');
+        
+        // 清空所有提示词备注
+        nanobananaPromptRemark.textContent = '';
+        modelscopePromptRemark.textContent = '';
+        modelscopeNegativePromptRemark.textContent = '';
+        volcenginePromptRemark.textContent = '';
+        
+        // 根据当前模型显示对应的控制面板和设置提示词备注
+        if (currentModel === 'nanobanana') {
+            nanobananaControls.classList.remove('hidden');
+            nanobananaPromptRemark.textContent = '(支持中文提示词)';
+        } else if (currentModel === 'volcengine') {
+            volcengineControls.classList.remove('hidden');
+            volcenginePromptRemark.textContent = '(支持中文提示词)';
+        } else {
+            modelscopeControls.classList.remove('hidden');
+            let remarkText = '';
+            if (currentModel === 'Qwen/Qwen-Image') {
+                remarkText = '(支持中文提示词)';
+            } else if (currentModel.includes('FLUX') || currentModel.includes('Kontext') || currentModel.includes('Krea')) {
+                remarkText = '(请使用英文提示词)';
+            }
+            modelscopePromptRemark.textContent = remarkText;
+            modelscopeNegativePromptRemark.textContent = remarkText;
+        }
     }
     
     function setupInputValidation() {
         const inputsToValidate = [stepsInput, guidanceInput, seedInput];
         inputsToValidate.forEach(input => {
             input.addEventListener('input', () => validateInput(input));
-            if (input.id === 'seed-input') { input.addEventListener('change', () => validateInput(input)); }
+            if (input.id === 'seed-input') { 
+                input.addEventListener('change', () => validateInput(input)); 
+            }
         });
     }
 
@@ -196,7 +287,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateGenerateButtonState() {
         const isTaskRunning = modelStates[currentModel].task.isRunning;
-        const currentPanel = (currentModel === 'nanobanana') ? nanobananaControls : modelscopeControls;
+        let currentPanel;
+        if (currentModel === 'nanobanana') {
+            currentPanel = nanobananaControls;
+        } else if (currentModel === 'volcengine') {
+            currentPanel = volcengineControls;
+        } else {
+            currentPanel = modelscopeControls;
+        }
         const currentButton = currentPanel.querySelector('.generate-btn');
         const btnText = currentButton.querySelector('.btn-text');
         const spinner = currentButton.querySelector('.spinner');
@@ -257,6 +355,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             let imageUrls;
             if (modelId === 'nanobanana') {
                 imageUrls = await handleNanoBananaGeneration(statusUpdate);
+            } else if (modelId === 'volcengine') {
+                imageUrls = await handleVolcengineGeneration(statusUpdate);
             } else {
                 imageUrls = await handleModelScopeGeneration(statusUpdate);
             }
@@ -361,6 +461,67 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    async function handleVolcengineGeneration(statusUpdate) {
+        const inputs = modelStates[currentModel].inputs;
+        
+        // 检查API Key
+        if (apiKeyVolcengineInput.parentElement.style.display !== 'none' && !apiKeyVolcengineInput.value.trim()) { 
+            throw new Error('请输入火山引擎的 API Key'); 
+        }
+        
+        // 检查提示词
+        if (!promptVolcengineInput.value.trim()) { 
+            throw new Error('请输入提示词'); 
+        }
+        
+        const timeoutPerRequest = 180 * 1000; // 3分钟超时
+        const totalTimeout = timeoutPerRequest;
+        
+        // 解析分辨率
+        const [width, height] = volcengineSizeSelect.value.split('x').map(Number);
+        
+        const requestBody = {
+            model: 'volcengine',
+            apikey: apiKeyVolcengineInput.value,
+            parameters: {
+                prompt: promptVolcengineInput.value.trim(),
+                width: width,
+                height: height,
+                force_single: volcengineForceSingleInput.checked
+            },
+            timeout: timeoutPerRequest / 1000
+        };
+        
+        const results = [];
+        const controller = new AbortController();
+        const overallTimeoutId = setTimeout(() => controller.abort(), totalTimeout);
+        
+        try {
+            statusUpdate('正在生成图片...');
+            
+            const response = await fetchWithTimeout('/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            }, timeoutPerRequest);
+            
+            const data = await response.json();
+            if (!response.ok || data.error) {
+                throw new Error(`图片生成失败: ${data.error}`);
+            }
+            
+            results.push(data);
+            clearTimeout(overallTimeoutId);
+            return results.map(data => data.imageUrl);
+        } catch (error) {
+            clearTimeout(overallTimeoutId);
+            if (error.name === 'AbortError') { 
+                throw new Error('生成超时，请稍后再试。'); 
+            }
+            throw error;
+        }
+    }
+
     function displayResults(imageUrls) {
         if (!imageUrls || imageUrls.length === 0 || !imageUrls[0]) { updateResultStatus("模型没有返回有效的图片URL。"); return; }
         mainResultImageContainer.innerHTML = ''; resultThumbnailsContainer.innerHTML = '';
@@ -421,5 +582,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.readAsDataURL(file);
     }
     
-    initialize();
+    await initialize();
+
+    function displayResult(imageUrl) {
+        // 显示主结果图片
+        mainResultImageContainer.innerHTML = `<img src="${imageUrl}" alt="Generated Image" onclick="openFullscreen('${imageUrl}')">`;
+        
+        // 添加到缩略图容器
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'result-thumbnail';
+        thumbnail.innerHTML = `<img src="${imageUrl}" alt="Generated Image" onclick="openFullscreen('${imageUrl}')">`;
+        resultThumbnailsContainer.appendChild(thumbnail);
+        
+        // 滚动到结果区域
+        mainResultImageContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function openFullscreen(imageUrl) {
+        modalImage.src = imageUrl;
+        fullscreenModal.style.display = 'flex';
+    }
+
+    // 关闭全屏模态框
+    closeModalBtn.addEventListener('click', () => {
+        fullscreenModal.style.display = 'none';
+    });
+
+    fullscreenModal.addEventListener('click', (e) => {
+        if (e.target === fullscreenModal) {
+            fullscreenModal.style.display = 'none';
+        }
+    });
 });
