@@ -99,10 +99,111 @@ const server = http.createServer((req, res) => {
     });
 });
 
-// 火山引擎API调用函数 - 暂时返回模拟结果，需要正确的签名机制
+// 火山引擎V4签名算法实现
+class VolcengineV4Signer {
+    constructor(accessKeyId, secretAccessKey, region = 'cn-north-1', service = 'cv') {
+        this.accessKeyId = accessKeyId;
+        this.secretAccessKey = secretAccessKey;
+        this.region = region;
+        this.service = service;
+    }
+
+    // SHA256哈希
+    async sha256(data) {
+        const crypto = require('crypto');
+        return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
+    }
+
+    // HMAC-SHA256签名
+    async hmacSha256(key, data) {
+        const crypto = require('crypto');
+        return crypto.createHmac('sha256', key).update(data, 'utf8').digest();
+    }
+
+    // URL编码
+    urlEncode(str) {
+        return encodeURIComponent(str)
+            .replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+            .replace(/%20/g, '+');
+    }
+
+    // 生成签名
+    async sign(method, path, query, headers, body) {
+        const now = new Date();
+        const xDate = now.toISOString().replace(/[:\-]|\.\d{3}/g, '').replace('T', 'T').replace('Z', 'Z');
+        const shortDate = xDate.substring(0, 8);
+
+        // 添加必要的头部
+        const signedHeaders = {
+            ...headers,
+            'X-Date': xDate,
+            'Host': 'visual.volcengineapi.com',
+            'Content-Type': 'application/json'
+        };
+
+        // 1. 创建正规化请求
+        const sortedQuery = Object.keys(query).sort().map(key => 
+            `${this.urlEncode(key)}=${this.urlEncode(query[key])}`
+        ).join('&');
+
+        const sortedHeaderKeys = Object.keys(signedHeaders).map(k => k.toLowerCase()).sort();
+        const canonicalHeaders = sortedHeaderKeys.map(key => 
+            `${key}:${signedHeaders[Object.keys(signedHeaders).find(k => k.toLowerCase() === key)].trim()}`
+        ).join('\n') + '\n';
+
+        const signedHeadersStr = sortedHeaderKeys.join(';');
+        const bodyHash = await this.sha256(body);
+
+        const canonicalRequest = [
+            method,
+            path,
+            sortedQuery,
+            canonicalHeaders,
+            signedHeadersStr,
+            bodyHash
+        ].join('\n');
+
+        // 2. 创建签名字符串
+        const algorithm = 'HMAC-SHA256';
+        const credentialScope = `${shortDate}/${this.region}/${this.service}/request`;
+        const canonicalRequestHash = await this.sha256(canonicalRequest);
+        
+        const stringToSign = [
+            algorithm,
+            xDate,
+            credentialScope,
+            canonicalRequestHash
+        ].join('\n');
+
+        // 3. 计算签名
+        let signingKey = await this.hmacSha256(this.secretAccessKey, shortDate);
+        signingKey = await this.hmacSha256(signingKey, this.region);
+        signingKey = await this.hmacSha256(signingKey, this.service);
+        signingKey = await this.hmacSha256(signingKey, 'request');
+        
+        const signature = await this.hmacSha256(signingKey, stringToSign);
+        const signatureHex = signature.toString('hex');
+
+        // 4. 构建Authorization头
+        const authorization = `${algorithm} Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeadersStr}, Signature=${signatureHex}`;
+
+        return {
+            ...signedHeaders,
+            'Authorization': authorization
+        };
+    }
+}
+
+// 火山引擎API调用函数 - 使用V4签名
 async function handleVolcengineGeneration(requestData) {
     const { apikey, parameters } = requestData;
     const { prompt, width, height, force_single } = parameters;
+    
+    // 解析credentials格式: "AccessKeyId:SecretAccessKey"
+    const [accessKeyId, secretAccessKey] = apikey.split(':');
+    if (!accessKeyId || !secretAccessKey) {
+        throw new Error('火山引擎API密钥格式错误，应为: AccessKeyId:SecretAccessKey');
+    }
     
     // 验证参数
     if (!prompt || prompt.length > 800) {
@@ -115,31 +216,116 @@ async function handleVolcengineGeneration(requestData) {
         throw new Error('图片分辨率必须在1K到4K范围内');
     }
     
-    if (!apikey) {
-        throw new Error('火山引擎API密钥未提供');
-    }
+    const signer = new VolcengineV4Signer(accessKeyId, secretAccessKey);
     
-    console.log('火山引擎即梦4.0 API调用 - 当前为模拟模式');
-    console.log('请求参数:', { prompt, width, height, force_single });
-    console.log('API Key已提供:', apikey.substring(0, 10) + '...');
-    
-    // 注意：火山引擎API需要复杂的签名机制，不是简单的Bearer Token
-    // 当前返回模拟结果，需要实现正确的签名算法才能调用真实API
-    console.warn('警告：当前使用模拟响应。火山引擎API需要实现V4签名算法，包括：');
-    console.warn('1. 正规化请求构造');
-    console.warn('2. 签名字符串生成');
-    console.warn('3. 签名密钥计算');
-    console.warn('4. 正确的请求头设置');
-    
-    // 模拟API调用延迟
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 返回模拟结果
-    return {
-        imageUrl: 'https://via.placeholder.com/512x512/FF6B6B/FFFFFF?text=Volcengine+Mock+Result',
-        success: true,
-        message: '模拟结果：火山引擎API需要实现正确的签名机制才能调用真实接口'
+    // 构建请求体
+    const requestBody = {
+        req_key: "jimeng_t2i_v40",
+        prompt: prompt,
+        width: width,
+        height: height,
+        force_single: force_single,
     };
+
+    const body = JSON.stringify(requestBody);
+    const query = {
+        Action: 'CVSync2AsyncSubmitTask',
+        Version: '2022-08-31'
+    };
+
+    console.log("[Volcengine] 提交任务，请求参数:", requestBody);
+
+    // 生成签名头
+    const headers = await signer.sign('POST', '/', query, {}, body);
+    const queryString = Object.keys(query).map(key => `${key}=${query[key]}`).join('&');
+    const url = `https://visual.volcengineapi.com/?${queryString}`;
+
+    // 提交任务
+    const response = await fetch(url, {
+        method: "POST",
+        headers: headers,
+        body: body,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('[Volcengine] API错误响应:', errorBody);
+        throw new Error(`火山引擎API调用失败: ${response.status} - ${errorBody}`);
+    }
+
+    const data = await response.json();
+    console.log('[Volcengine] 任务提交响应:', data);
+    
+    // 检查任务ID
+    if (data.data?.task_id) {
+        const taskId = data.data.task_id;
+        console.log(`[Volcengine] 任务已提交，任务ID: ${taskId}`);
+        
+        // 轮询任务状态
+        const pollingQuery = {
+            Action: 'CVSync2AsyncGetResult',
+            Version: '2022-08-31'
+        };
+        
+        const pollingBody = {
+            req_key: 'jimeng_t2i_v40',
+            task_id: taskId,
+            req_json: JSON.stringify({
+                return_url: true
+            })
+        };
+        
+        const pollingIntervalSeconds = 5;
+        const maxRetries = 24; // 2分钟超时
+
+        for (let i = 0; i < maxRetries; i++) {
+            await new Promise(resolve => setTimeout(resolve, pollingIntervalSeconds * 1000));
+            console.log(`[Volcengine] 轮询任务状态... 第${i + 1}/${maxRetries}次`);
+            
+            const pollingBodyStr = JSON.stringify(pollingBody);
+            const pollingHeaders = await signer.sign('POST', '/', pollingQuery, {}, pollingBodyStr);
+            const pollingQueryString = Object.keys(pollingQuery).map(key => `${key}=${pollingQuery[key]}`).join('&');
+            const pollingUrl = `https://visual.volcengineapi.com/?${pollingQueryString}`;
+            
+            const statusResponse = await fetch(pollingUrl, { 
+                method: 'POST',
+                headers: {
+                    ...pollingHeaders,
+                    'Content-Type': 'application/json'
+                },
+                body: pollingBodyStr
+            });
+
+            if (!statusResponse.ok) {
+                console.error(`[Volcengine] 获取任务状态失败: ${statusResponse.status}`);
+                continue;
+            }
+
+            const statusData = await statusResponse.json();
+            console.log('[Volcengine] 任务状态:', statusData);
+            
+            if (statusData.data?.status === "done") {
+                console.log("[Volcengine] 任务完成成功");
+                const imageUrl = statusData.data?.image_urls?.[0];
+                if (imageUrl) {
+                    return {
+                        imageUrl: imageUrl,
+                        success: true,
+                        message: '图片生成成功'
+                    };
+                } else {
+                    throw new Error("任务完成但未返回图片URL");
+                }
+            } else if (statusData.data?.status === "failed") {
+                console.error("[Volcengine] 任务执行失败:", statusData);
+                throw new Error(`任务执行失败: ${statusData.data?.error_message || '未知错误'}`);
+            }
+            // 如果状态是running或pending，继续轮询
+        }
+        throw new Error(`任务超时，${pollingIntervalSeconds * maxRetries}秒内未完成`);
+    }
+
+    throw new Error("API响应格式不正确，未返回任务ID");
 }
 
 server.listen(PORT, () => {

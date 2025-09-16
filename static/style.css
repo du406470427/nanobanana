@@ -323,6 +323,80 @@ select {
 #modal-image { max-width: 90%; max-height: 90%; display: block; object-fit: contain; }
 .close-btn { position: absolute; top: 20px; right: 35px; color: #fff; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; }
 
+/* 火山引擎图片上传样式 - 与Nano Banana保持一致 */
+.volcengine-upload-section {
+    margin-bottom: 1rem;
+}
+
+.volcengine-upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: var(--input-bg-color);
+    cursor: pointer;
+}
+
+.volcengine-upload-area:hover,
+.volcengine-upload-area.drag-over {
+    border-color: var(--gradient-mid);
+    background: var(--input-hover-bg-color);
+}
+
+.volcengine-upload-area p {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.volcengine-upload-area span {
+    color: var(--text-color-tertiary);
+    font-size: 0.9rem;
+}
+
+.volcengine-thumbnails-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.volcengine-thumbnails-container .thumbnail-wrapper {
+    position: relative;
+    padding-top: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--input-bg-color);
+}
+
+.volcengine-thumbnails-container .thumbnail-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.volcengine-thumbnails-container .thumbnail-wrapper .remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    padding: 0;
+    line-height: 1;
+}
+
 @media (max-width: 1024px) {
     .main-container { flex-direction: column; }
     .controls-container { max-width: none; }
@@ -330,4 +404,12 @@ select {
     .model-selector-container { flex-direction: column; border-radius: 12px; box-shadow: none; border: 1px solid var(--border-color); }
     .model-card { border-radius: 0; }
     #theme-toggle-btn { top: 1rem; right: 1rem; }
+    
+    .volcengine-upload-area {
+        padding: 1.5rem;
+    }
+    
+    .volcengine-thumbnails-container {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
 }

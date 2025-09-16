@@ -137,6 +137,17 @@
                     <h2>提示词 <span id="volcengine-prompt-remark" class="prompt-remark"></span></h2>
                     <textarea id="prompt-input-volcengine" placeholder="例如：A beautiful landscape, masterpiece, best quality"></textarea>
                 </div>
+                <div class="upload-section">
+                    <h2>上传参考图片 (可选)</h2>
+                    <div class="upload-area volcengine-upload">
+                        <input type="file" id="volcengine-image-upload" accept="image/*" multiple>
+                        <label for="volcengine-image-upload">
+                            <p>点击或拖拽上传参考图片</p>
+                            <span>支持多张图片，用于图像编辑和多图组合生成</span>
+                        </label>
+                    </div>
+                    <div id="volcengine-thumbnails-container"></div>
+                </div>
                 <div class="settings-section">
                     <div class="setting-item">
                         <label for="volcengine-size-select">分辨率</label>
@@ -147,7 +158,14 @@
                             <option value="2304x1728">4:3 - 2304x1728 (2K)</option>
                             <option value="1728x2304">3:4 - 1728x2304 (2K)</option>
                             <option value="4096x4096">1:1 - 4096x4096 (4K)</option>
+                            <option value="3840x2160">16:9 - 3840x2160 (4K)</option>
+                            <option value="2160x3840">9:16 - 2160x3840 (4K)</option>
                         </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="volcengine-scale">引导系数 <span class="param-note">(范围: 1-20, 默认: 7.5)</span></label>
+                        <input type="number" id="volcengine-scale" value="7.5" step="0.5" min="1" max="20" data-min="1" data-max="20">
+                        <p class="error-message hidden"></p>
                     </div>
                     <div class="setting-item">
                         <label for="volcengine-force-single">强制单图</label>

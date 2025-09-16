@@ -67,6 +67,28 @@
 
 ---
 
+## 火山引擎API密钥获取
+
+1. 登录[火山引擎控制台](https://console.volcengine.com/)
+2. 进入"访问控制" > "访问密钥"
+3. 创建或查看AccessKey
+4. 格式: `AccessKeyId:SecretAccessKey`
+5. 确保账户有视觉智能服务权限
+
+## 故障排除
+
+如果遇到问题，请查看 [故障排除指南](./TROUBLESHOOTING.md)，包含常见问题的解决方案。
+
+### 快速测试
+
+本地测试火山引擎API:
+```bash
+# 修改 test_volcengine.js 中的API密钥
+node test_volcengine.js
+```
+
+---
+
 ## 💻 技术栈
 
 -   **前端**: 原生 HTML, CSS, JavaScript (无框架)

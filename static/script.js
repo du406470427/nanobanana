@@ -42,6 +42,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const promptVolcengineInput = document.getElementById('prompt-input-volcengine');
     const volcengineSizeSelect = document.getElementById('volcengine-size-select');
     const volcengineForceSingleInput = document.getElementById('volcengine-force-single');
+    const volcengineScaleInput = document.getElementById('volcengine-scale');
+    const volcengineFileInput = document.getElementById('volcengine-image-upload');
+    const volcengineThumbnailsContainer = document.getElementById('volcengine-thumbnails-container');
+    const volcengineUploadArea = document.querySelector('.volcengine-upload');
 
     // --- 状态变量 ---
     let selectedFiles = [];
@@ -55,6 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inputs: {
                     prompt: '',
                     size: '2048x2048',
+                    scale: 7.5,
                     force_single: true,
                     files: []
                 },
@@ -477,18 +482,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         const timeoutPerRequest = 180 * 1000; // 3分钟超时
         const totalTimeout = timeoutPerRequest;
         
+        // 验证scale参数
+        const isScaleValid = validateInput(volcengineScaleInput);
+        if (!isScaleValid) { 
+            throw new Error('请修正引导系数参数错误后再生成'); 
+        }
+        
         // 解析分辨率
         const [width, height] = volcengineSizeSelect.value.split('x').map(Number);
+        
+        // 构建请求参数
+        const parameters = {
+            prompt: promptVolcengineInput.value.trim(),
+            width: width,
+            height: height,
+            scale: parseFloat(volcengineScaleInput.value),
+            force_single: volcengineForceSingleInput.checked
+        };
+        
+        // 如果有上传的图片，添加image_urls参数
+        if (inputs.files && inputs.files.length > 0) {
+            parameters.image_urls = inputs.files;
+        }
         
         const requestBody = {
             model: 'volcengine',
             apikey: apiKeyVolcengineInput.value,
-            parameters: {
-                prompt: promptVolcengineInput.value.trim(),
-                width: width,
-                height: height,
-                force_single: volcengineForceSingleInput.checked
-            },
+            parameters: parameters,
             timeout: timeoutPerRequest / 1000
         };
         
@@ -557,6 +577,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     uploadArea.addEventListener('drop', (e) => handleFiles(Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'))));
     fileInput.addEventListener('change', (e) => handleFiles(Array.from(e.target.files).filter(file => file.type.startsWith('image/'))));
     
+    // 火山引擎图片上传处理
+    ['dragenter', 'dragover'].forEach(eventName => {
+        volcengineUploadArea.addEventListener(eventName, (e) => {
+            preventDefaults(e);
+            volcengineUploadArea.classList.add('drag-over');
+        });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        volcengineUploadArea.addEventListener(eventName, (e) => {
+            preventDefaults(e);
+            volcengineUploadArea.classList.remove('drag-over');
+        });
+    });
+    volcengineUploadArea.addEventListener('drop', (e) => {
+        preventDefaults(e);
+        handleVolcengineFiles(Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/')));
+    });
+    volcengineFileInput.addEventListener('change', (e) => {
+        handleVolcengineFiles(Array.from(e.target.files).filter(file => file.type.startsWith('image/')));
+    });
+    
     // [修正] 移除 handleFiles 函数中的重置逻辑
     function handleFiles(files) {
         files.forEach(file => {
@@ -580,6 +621,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             wrapper.appendChild(img); wrapper.appendChild(removeBtn); thumbnailsContainer.appendChild(wrapper);
         };
         reader.readAsDataURL(file);
+    }
+    
+    // 火山引擎文件处理函数
+    function handleVolcengineFiles(files) {
+        files.forEach(async (file) => {
+            if (!modelStates.volcengine.inputs.files) {
+                modelStates.volcengine.inputs.files = [];
+            }
+            
+            // 转换为base64
+            const base64 = await fileToBase64(file);
+            
+            // 检查是否已存在
+            if (!modelStates.volcengine.inputs.files.some(f => f.name === file.name)) {
+                modelStates.volcengine.inputs.files.push(base64);
+                createVolcengineThumbnail(file, base64);
+            }
+        });
+    }
+    
+    function createVolcengineThumbnail(file, base64) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'thumbnail-wrapper';
+        
+        const img = document.createElement('img');
+        img.src = base64;
+        img.alt = file.name;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.innerHTML = '×';
+        removeBtn.onclick = () => {
+            modelStates.volcengine.inputs.files = modelStates.volcengine.inputs.files.filter(f => f !== base64);
+            wrapper.remove();
+        };
+        
+        wrapper.appendChild(img);
+        wrapper.appendChild(removeBtn);
+        volcengineThumbnailsContainer.appendChild(wrapper);
     }
     
     await initialize();

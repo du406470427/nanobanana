@@ -215,16 +215,24 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
     }
 
     const signer = new VolcengineV4Signer(accessKeyId, secretAccessKey);
-    const [width, height] = (parameters.size || "2048x2048").split('x').map(Number);
-
+    
     // 构建请求体
-    const requestBody = {
+    const requestBody: any = {
         req_key: "jimeng_t2i_v40",
         prompt: parameters.prompt,
-        width: width,
-        height: height,
-        force_single: parameters.count === 1,
+        width: parameters.width,
+        height: parameters.height,
+        force_single: parameters.force_single,
     };
+    
+    // 添加可选参数
+    if (parameters.scale !== undefined) {
+        requestBody.scale = parameters.scale;
+    }
+    
+    if (parameters.image_urls && Array.isArray(parameters.image_urls) && parameters.image_urls.length > 0) {
+        requestBody.image_urls = parameters.image_urls;
+    }
 
     const body = JSON.stringify(requestBody);
     const query = {
@@ -262,9 +270,16 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
         
         // 轮询任务状态
         const pollingQuery = {
-            Action: 'CVGetTaskResult',
-            Version: '2022-08-31',
-            TaskId: taskId
+            Action: 'CVSync2AsyncGetResult',
+            Version: '2022-08-31'
+        };
+        
+        const pollingBody = {
+            req_key: 'jimeng_t2i_v40',
+            task_id: taskId,
+            req_json: JSON.stringify({
+                return_url: true
+            })
         };
         
         const pollingIntervalSeconds = 5;
@@ -274,13 +289,18 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
             await sleep(pollingIntervalSeconds * 1000);
             console.log(`[Volcengine] 轮询任务状态... 第${i + 1}/${maxRetries}次`);
             
-            const pollingHeaders = await signer.sign('GET', '/', pollingQuery, {}, '');
+            const pollingBodyStr = JSON.stringify(pollingBody);
+            const pollingHeaders = await signer.sign('POST', '/', pollingQuery, {}, pollingBodyStr);
             const pollingQueryString = Object.keys(pollingQuery).map(key => `${key}=${pollingQuery[key]}`).join('&');
             const pollingUrl = `https://visual.volcengineapi.com/?${pollingQueryString}`;
             
             const statusResponse = await fetch(pollingUrl, { 
-                method: 'GET',
-                headers: pollingHeaders 
+                method: 'POST',
+                headers: {
+                    ...pollingHeaders,
+                    'Content-Type': 'application/json'
+                },
+                body: pollingBodyStr
             });
 
             if (!statusResponse.ok) {
@@ -291,17 +311,17 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
             const statusData = await statusResponse.json();
             console.log('[Volcengine] 任务状态:', statusData);
             
-            if (statusData.Result?.Status === "done") {
+            if (statusData.data?.status === "done") {
                 console.log("[Volcengine] 任务完成成功");
-                const imageUrl = statusData.Result?.Data?.image_urls?.[0];
+                const imageUrl = statusData.data?.image_urls?.[0];
                 if (imageUrl) {
                     return { imageUrl };
                 } else {
                     throw new Error("任务完成但未返回图片URL");
                 }
-            } else if (statusData.Result?.Status === "failed") {
+            } else if (statusData.data?.status === "failed") {
                 console.error("[Volcengine] 任务执行失败:", statusData);
-                throw new Error(`任务执行失败: ${statusData.Result?.ErrorMessage || '未知错误'}`);
+                throw new Error(`任务执行失败: ${statusData.data?.error_message || '未知错误'}`);
             }
             // 如果状态是running或pending，继续轮询
         }
