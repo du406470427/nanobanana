@@ -500,13 +500,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             force_single: volcengineForceSingleInput.checked
         };
         
-        // 如果有上传的图片，添加image_urls参数
+        // 处理图片上传 - Base64直传方案
         if (inputs.files && inputs.files.length > 0) {
-            parameters.image_urls = inputs.files;
+            try {
+                const base64Images = [];
+                
+                for (const base64Data of inputs.files) {
+                    // 检查是否已经是完整的data URL格式
+                    if (base64Data.startsWith('data:image/')) {
+                        base64Images.push(base64Data);
+                    } else {
+                        // 如果只是base64编码，需要添加前缀
+                        // 默认假设是PNG格式，实际项目中可以根据文件类型判断
+                        base64Images.push(`data:image/png;base64,${base64Data}`);
+                    }
+                }
+                
+                parameters.image_urls = base64Images;
+                console.log('图片Base64处理成功，数量:', base64Images.length);
+            } catch (uploadError) {
+                console.error('图片处理错误:', uploadError);
+                throw new Error('图片处理失败: ' + uploadError.message);
+            }
         }
         
         const requestBody = {
-            model: 'volcengine',
             apikey: apiKeyVolcengineInput.value,
             parameters: parameters,
             timeout: timeoutPerRequest / 1000

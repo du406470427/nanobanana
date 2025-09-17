@@ -43,6 +43,7 @@
     *   添加 `MODELSCOPE_API_KEY`，值为您的 ModelScope 密钥（用于 Qwen, Flux 等）。
     *   添加 `VOLCENGINE_API_KEY`，值为您的火山引擎密钥（用于新模型）。
     *   添加 `OPENROUTER_API_KEYS`，值为您的 OpenRouter 密钥（用于 Nano Banana）。
+    *   添加 `IMGBB_API_KEY`，值为您的 ImgBB 密钥（用于图片上传服务）。
     *   *提示: 您可以添加多个由逗号分隔的密钥 (例如 `key1,key2,key3`) 来实现负载均衡。*
     *   **没有密钥？**
         *   [如何注册 ModelScope API 密钥](https://x230rpqk6u.feishu.cn/wiki/AJxKwmleQiUovZkZZOJc4mp4n5g)

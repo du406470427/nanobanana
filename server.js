@@ -1,6 +1,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+
+// 使用系统环境变量（无需dotenv）
 
 const PORT = 3000;
 
@@ -37,6 +40,98 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // 处理图片上传
+    if (req.url === '/upload' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        req.on('end', async () => {
+            try {
+                const uploadData = JSON.parse(body);
+                console.log('收到图片上传请求');
+                
+                const uploadedUrls = [];
+                
+                // 处理每个base64图片
+                if (uploadData.images && Array.isArray(uploadData.images)) {
+                    for (const base64Data of uploadData.images) {
+                        try {
+                            // 优先使用ImgBB图床服务
+                            if (process.env.IMGBB_API_KEY) {
+                                console.log('使用ImgBB图床服务上传图片');
+                                
+                                // 提取base64数据（去掉data:image/xxx;base64,前缀）
+                                const base64Only = base64Data.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+                                
+                                // 上传到ImgBB
+                                const formData = new URLSearchParams();
+                                formData.append('image', base64Only);
+                                
+                                const imgbbResponse = await fetch(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                
+                                if (imgbbResponse.ok) {
+                                    const imgbbResult = await imgbbResponse.json();
+                                    if (imgbbResult.success) {
+                                        uploadedUrls.push(imgbbResult.data.url);
+                                        console.log(`图片已上传到ImgBB: ${imgbbResult.data.url}`);
+                                        continue;
+                                    }
+                                }
+                                
+                                console.log('ImgBB上传失败，回退到本地存储');
+                            }
+                            
+                            // 回退方案：本地存储
+                            console.log('使用本地存储');
+                            
+                            // 确保uploads目录存在
+                            const uploadsDir = path.join(__dirname, 'static', 'uploads');
+                            if (!fs.existsSync(uploadsDir)) {
+                                fs.mkdirSync(uploadsDir, { recursive: true });
+                            }
+                            
+                            // 提取base64数据（去掉data:image/xxx;base64,前缀）
+                            const matches = base64Data.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
+                            if (matches) {
+                                const imageType = matches[1];
+                                const imageBuffer = Buffer.from(matches[2], 'base64');
+                                
+                                // 生成唯一文件名
+                                const fileName = `${crypto.randomUUID()}.${imageType}`;
+                                const filePath = path.join(uploadsDir, fileName);
+                                
+                                // 保存文件
+                                fs.writeFileSync(filePath, imageBuffer);
+                                
+                                // 生成可访问的URL
+                                const imageUrl = `http://localhost:${PORT}/uploads/${fileName}`;
+                                uploadedUrls.push(imageUrl);
+                                
+                                console.log(`图片已保存到本地: ${fileName}`);
+                            } else {
+                                console.error('无效的base64图片格式');
+                            }
+                        } catch (imageError) {
+                            console.error('单个图片处理失败:', imageError);
+                        }
+                    }
+                }
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ urls: uploadedUrls }));
+            } catch (error) {
+                console.error('图片上传错误:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+        });
+        return;
+    }
+    
     // 处理API请求
     if (req.url === '/generate' && req.method === 'POST') {
         let body = '';
@@ -48,7 +143,8 @@ const server = http.createServer((req, res) => {
                 const requestData = JSON.parse(body);
                 console.log('收到生成请求:', requestData);
                 
-                if (requestData.model === 'volcengine') {
+                // 检查是否为即梦4.0请求（通过apikey字段识别）
+                if (requestData.apikey && requestData.parameters) {
                     const result = await handleVolcengineGeneration(requestData);
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify(result));
@@ -197,7 +293,7 @@ class VolcengineV4Signer {
 // 火山引擎API调用函数 - 使用V4签名
 async function handleVolcengineGeneration(requestData) {
     const { apikey, parameters } = requestData;
-    const { prompt, width, height, force_single } = parameters;
+    const { prompt, width, height, force_single, scale, image_urls } = parameters;
     
     // 解析credentials格式: "AccessKeyId:SecretAccessKey"
     const [accessKeyId, secretAccessKey] = apikey.split(':');
@@ -224,8 +320,14 @@ async function handleVolcengineGeneration(requestData) {
         prompt: prompt,
         width: width,
         height: height,
+        scale: scale || 0.5,
         force_single: force_single,
     };
+    
+    // 如果有图片URL，添加到请求体中
+    if (image_urls && image_urls.length > 0) {
+        requestBody.image_urls = image_urls;
+    }
 
     const body = JSON.stringify(requestBody);
     const query = {
