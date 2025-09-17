@@ -124,8 +124,10 @@ class VolcengineV4Signer {
     // HMAC-SHA256签名
     private async hmacSha256(key: Uint8Array, data: string): Promise<Uint8Array> {
         const encoder = new TextEncoder();
+        const keyBuffer = new ArrayBuffer(key.length);
+        new Uint8Array(keyBuffer).set(key);
         const cryptoKey = await crypto.subtle.importKey(
-            'raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            'raw', keyBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
         );
         const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
         return new Uint8Array(signature);
@@ -158,9 +160,10 @@ class VolcengineV4Signer {
         ).join('&');
 
         const sortedHeaderKeys = Object.keys(signedHeaders).map(k => k.toLowerCase()).sort();
-        const canonicalHeaders = sortedHeaderKeys.map(key => 
-            `${key}:${signedHeaders[Object.keys(signedHeaders).find(k => k.toLowerCase() === key)!].trim()}`
-        ).join('\n') + '\n';
+        const canonicalHeaders = sortedHeaderKeys.map(key => {
+            const originalKey = Object.keys(signedHeaders).find(k => k.toLowerCase() === key)!;
+            return `${key}:${(signedHeaders as Record<string, string>)[originalKey].trim()}`;
+        }).join('\n') + '\n';
 
         const signedHeadersStr = sortedHeaderKeys.join(';');
         const bodyHash = await this.sha256(body);
@@ -244,7 +247,7 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
 
     // 生成签名头
     const headers = await signer.sign('POST', '/', query, {}, body);
-    const queryString = Object.keys(query).map(key => `${key}=${query[key]}`).join('&');
+    const queryString = Object.keys(query).map(key => `${key}=${query[key as keyof typeof query]}`).join('&');
     const url = `https://visual.volcengineapi.com/?${queryString}`;
 
     // 提交任务
@@ -264,8 +267,8 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
     console.log('[Volcengine] 任务提交响应:', data);
     
     // 检查任务ID
-    if (data.Result?.TaskId) {
-        const taskId = data.Result.TaskId;
+    if (data.data?.task_id) {
+        const taskId = data.data.task_id;
         console.log(`[Volcengine] 任务已提交，任务ID: ${taskId}`);
         
         // 轮询任务状态
@@ -291,7 +294,7 @@ async function callVolcengine(credentials: string, parameters: any, timeoutSecon
             
             const pollingBodyStr = JSON.stringify(pollingBody);
             const pollingHeaders = await signer.sign('POST', '/', pollingQuery, {}, pollingBodyStr);
-            const pollingQueryString = Object.keys(pollingQuery).map(key => `${key}=${pollingQuery[key]}`).join('&');
+            const pollingQueryString = Object.keys(pollingQuery).map(key => `${key}=${pollingQuery[key as keyof typeof pollingQuery]}`).join('&');
             const pollingUrl = `https://visual.volcengineapi.com/?${pollingQueryString}`;
             
             const statusResponse = await fetch(pollingUrl, { 
@@ -417,7 +420,8 @@ serve(async (req) => {
                     
                 } catch (error) {
                     console.error(`[Upload] 单个图片处理失败:`, error);
-                    return createJsonErrorResponse(`图片上传失败: ${error.message}`, 500);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    return createJsonErrorResponse(`图片上传失败: ${errorMessage}`, 500);
                 }
             }
             
@@ -427,7 +431,8 @@ serve(async (req) => {
             
         } catch (error) {
             console.error("[Upload] 上传处理错误:", error);
-            return createJsonErrorResponse(`上传失败: ${error.message}`, 500);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return createJsonErrorResponse(`上传失败: ${errorMessage}`, 500);
         }
     }
 
@@ -458,7 +463,7 @@ serve(async (req) => {
                 if (!volcengineApiKey) { return createJsonErrorResponse("Volcengine API key is not set.", 401); }
                 if (!parameters?.prompt) { return createJsonErrorResponse("Prompt is required for Volcengine models.", 400); }
                 
-                const timeoutSeconds = timeout || 180;
+                const timeoutSeconds = timeout || 120;
                 const result = await callVolcengine(volcengineApiKey, parameters, timeoutSeconds);
 
                 return new Response(JSON.stringify(result), {
@@ -481,7 +486,8 @@ serve(async (req) => {
             }
         } catch (error) {
             console.error("Error handling /generate request:", error);
-            return createJsonErrorResponse(error.message, 500);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return createJsonErrorResponse(errorMessage, 500);
         }
     }
 

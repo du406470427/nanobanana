@@ -48,8 +48,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const volcengineUploadArea = document.querySelector('.volcengine-upload');
 
     // --- 状态变量 ---
+    const modelHandlers = {
+        modelscope: {
+            isApiKeyChecking: false,
+            isApiKeySet: false
+        },
+        volcengine: {
+            isApiKeyChecking: false,
+            isApiKeySet: false
+        }
+    };
     let selectedFiles = [];
-    let currentModel = 'Qwen/Qwen-Image';
+    let currentModel = 'volcengine';
     
     const modelStates = {};
     modelCards.forEach(card => {
@@ -116,7 +126,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/modelscope-key-status');
             const data = await response.json();
             modelHandlers.modelscope.isApiKeySet = data.isSet;
-            updateKeyStatus("modelscope");
             if (data.isSet) { 
                 apiKeyModelScopeInput.parentElement.style.display = 'none'; 
             }
@@ -132,7 +141,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch("/api/volcengine-key-status");
             const data = await response.json();
             modelHandlers.volcengine.isApiKeySet = data.isSet;
-            updateKeyStatus("volcengine");
+            if (data.isSet) { 
+                apiKeyVolcengineInput.parentElement.style.display = 'none'; 
+            }
         } catch (error) {
             console.error("Error checking Volcengine key:", error);
         } finally {
@@ -500,31 +511,55 @@ document.addEventListener('DOMContentLoaded', async () => {
             force_single: volcengineForceSingleInput.checked
         };
         
-        // 处理图片上传 - Base64直传方案
+        // 处理图片上传 - 先上传到图床获得真实URL
         if (inputs.files && inputs.files.length > 0) {
             try {
-                const base64Images = [];
+                statusUpdate('正在上传参考图片...');
+                const imageUrls = [];
                 
                 for (const base64Data of inputs.files) {
-                    // 检查是否已经是完整的data URL格式
+                    // 确保是完整的data URL格式
+                    let fullBase64;
                     if (base64Data.startsWith('data:image/')) {
-                        base64Images.push(base64Data);
+                        fullBase64 = base64Data;
                     } else {
-                        // 如果只是base64编码，需要添加前缀
-                        // 默认假设是PNG格式，实际项目中可以根据文件类型判断
-                        base64Images.push(`data:image/png;base64,${base64Data}`);
+                        fullBase64 = `data:image/png;base64,${base64Data}`;
+                    }
+                    
+                    // 上传到图床
+                    const uploadResponse = await fetch('/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            images: [fullBase64]
+                        })
+                    });
+                    
+                    if (!uploadResponse.ok) {
+                        throw new Error('图片上传失败');
+                    }
+                    
+                    const uploadResult = await uploadResponse.json();
+                    if (uploadResult.urls && uploadResult.urls.length > 0) {
+                        imageUrls.push(uploadResult.urls[0]);
+                        console.log('图片上传成功:', uploadResult.urls[0]);
+                    } else {
+                        throw new Error('图片上传失败，未返回URL');
                     }
                 }
                 
-                parameters.image_urls = base64Images;
-                console.log('图片Base64处理成功，数量:', base64Images.length);
+                parameters.image_urls = imageUrls;
+                console.log('所有图片上传成功，数量:', imageUrls.length);
             } catch (uploadError) {
-                console.error('图片处理错误:', uploadError);
-                throw new Error('图片处理失败: ' + uploadError.message);
+                console.error('图片上传错误:', uploadError);
+                throw new Error('图片上传失败: ' + uploadError.message);
             }
         }
         
         const requestBody = {
+            model: 'volcengine',
             apikey: apiKeyVolcengineInput.value,
             parameters: parameters,
             timeout: timeoutPerRequest / 1000
